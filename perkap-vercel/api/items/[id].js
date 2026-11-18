@@ -44,8 +44,9 @@ export default async function handler(req, res) {
         if (!Number.isFinite(jumlah) || jumlah < 0) return res.status(400).json({ error: 'Jumlah harus angka 0 atau lebih' });
       }
       if (body.status !== undefined) {
-        if (!STATUSES.includes(body.status)) return res.status(400).json({ error: 'Status tidak valid' });
-        status = body.status;
+        const s = String(body.status).trim().slice(0, 30);
+        if (!s) return res.status(400).json({ error: 'Status tidak valid' });
+        status = s;
       }
       if (body.keterangan !== undefined) keterangan = String(body.keterangan).trim();
 

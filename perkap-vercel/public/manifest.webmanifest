@@ -1,6 +1,6 @@
 {
-  "name": "Perkap - Inventaris Barang Acara",
-  "short_name": "Perkap",
+  "name": "PERKAP Alfamart - Inventaris Barang Acara",
+  "short_name": "PERKAP Alfamart",
   "description": "Aplikasi inventaris barang untuk acara: tambah, ubah, hapus, atur jumlah dan status barang (dipakai / dipinjam / dikembalikan).",
   "start_url": "/",
   "scope": "/",

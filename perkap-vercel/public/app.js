@@ -6,25 +6,22 @@
   const TOKEN_KEY = 'perkap_token';
   const POLL_MS = 4000;
 
-  const STATUS_LABEL = {
-    dipakai: 'Sedang Dipakai',
-    dipinjam: 'Dipinjam',
-    dikembalikan: 'Sudah Dikembalikan',
-  };
-  const STATUS_SHORT = {
-    dipakai: 'Dipakai',
-    dipinjam: 'Dipinjam',
-    dikembalikan: 'Dikembalikan',
-  };
+  const DEFAULT_STATUSES = [
+    { key: 'dipakai', label: 'Dipakai', isDone: false },
+    { key: 'dipinjam', label: 'Dipinjam', isDone: false },
+    { key: 'dikembalikan', label: 'Dikembalikan', isDone: true },
+  ];
 
   const state = {
     token: localStorage.getItem(TOKEN_KEY) || null,
     user: null,
     items: [],
+    statuses: DEFAULT_STATUSES.slice(),
     filter: 'all',
     search: '',
   };
   let pollTimer = null;
+  let lastSnapshot = null;
 
   /* ---------- API helper ---------- */
   async function api(path, opts = {}) {
@@ -50,6 +47,78 @@
     toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
   }
 
+  /* ---------- Loading (overlay & tombol) ---------- */
+  function showOverlay(text) {
+    const o = $('#loadingOverlay'); if (!o) return;
+    const t = o.querySelector('.loading-text'); if (t) t.textContent = text || 'Memuat…';
+    o.classList.remove('hidden');
+  }
+  function hideOverlay() { const o = $('#loadingOverlay'); if (o) o.classList.add('hidden'); }
+  function setBtnLoading(btn, on, text) {
+    if (!btn) return;
+    if (on) {
+      if (!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
+      btn.classList.add('is-loading');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>' + (text ? ' ' + text : '');
+    } else {
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+      if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml;
+    }
+  }
+
+  /* ---------- Theme (gelap/terang) ---------- */
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('perkap_theme', t); } catch (e) {}
+    document.querySelectorAll('.theme-btn').forEach((b) => { b.textContent = t === 'dark' ? '☀️' : '🌙'; });
+    const mt = document.querySelector('meta[name="theme-color"]');
+    if (mt) mt.setAttribute('content', t === 'dark' ? '#0f1117' : '#4f46e5');
+  }
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  }
+  document.querySelectorAll('.theme-btn').forEach((b) => {
+    b.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark'));
+  });
+  applyTheme(currentTheme());
+
+  /* ---------- Status helpers ---------- */
+  function statusMeta(key) {
+    return state.statuses.find((s) => s.key === key) || { key, label: key, isDone: key === 'dikembalikan' };
+  }
+  async function loadStatuses() {
+    try {
+      const r = await api('/api/statuses');
+      if (r.statuses && r.statuses.length) state.statuses = r.statuses;
+    } catch (e) { /* tetap pakai default */ }
+  }
+  function fillStatusSelect(selectedKey) {
+    const sel = $('#statusInput');
+    if (!sel) return;
+    const list = state.statuses.slice();
+    if (selectedKey && !list.some((s) => s.key === selectedKey)) {
+      list.push({ key: selectedKey, label: selectedKey, isDone: false });
+    }
+    sel.innerHTML = list.map((s) =>
+      `<option value="${s.key}" ${s.key === selectedKey ? 'selected' : ''}>${esc(s.label)}</option>`
+    ).join('');
+  }
+  async function onAddStatus() {
+    const label = (window.prompt('Nama status baru (mis. Rusak, Hilang, Cadangan):') || '').trim();
+    if (!label) return;
+    const isDone = window.confirm(
+      'Tandai status ini sebagai SELESAI?\n\nOK = saat status ini dipilih, nama barang TERCORET (tanda selesai).\nBatal = status biasa (tidak tercoret).'
+    );
+    try {
+      const r = await api('/api/statuses', { method: 'POST', body: JSON.stringify({ label, isDone }) });
+      await loadStatuses();
+      fillStatusSelect(r.status.key);
+      toast('Status "' + r.status.label + '" ditambahkan');
+    } catch (err) { toast(err.message, true); }
+  }
+
   /* ---------- Auth screen ---------- */
   function showAuth() { $('#authScreen').classList.remove('hidden'); $('#appScreen').classList.add('hidden'); }
   function showApp() { $('#authScreen').classList.add('hidden'); $('#appScreen').classList.remove('hidden'); }
@@ -58,24 +127,33 @@
     e.preventDefault();
     const fd = new FormData(e.target);
     $('#loginError').textContent = '';
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    setBtnLoading(submitBtn, true, 'Masuk…');
     try {
       const r = await api('/api/login', {
         method: 'POST',
         body: JSON.stringify({ nama: fd.get('nama') }),
       });
-      onLoggedIn(r.token, r.user);
+      await onLoggedIn(r.token, r.user);
       if (r.created) toast('Nama baru dibuat. Selamat datang, ' + r.user.username + '!');
       else toast('Selamat datang kembali, ' + r.user.username + '!');
     } catch (err) { $('#loginError').textContent = err.message; }
+    finally { setBtnLoading(submitBtn, false); }
   });
 
-  function onLoggedIn(token, user) {
+  async function onLoggedIn(token, user) {
     state.token = token;
     state.user = user;
     localStorage.setItem(TOKEN_KEY, token);
     $('#whoami').textContent = user.username;
     showApp();
-    loadItems();
+    showOverlay('Memuat data…');
+    try {
+      await loadStatuses();
+      await loadItems();
+    } finally {
+      hideOverlay();
+    }
     startPolling();
   }
 
@@ -83,6 +161,8 @@
     state.token = null;
     state.user = null;
     state.items = [];
+    state.statuses = DEFAULT_STATUSES.slice();
+    lastSnapshot = null;
     localStorage.removeItem(TOKEN_KEY);
     stopPolling();
     showAuth();
@@ -94,13 +174,20 @@
     toast('Anda telah keluar');
   });
 
-  /* ---------- Data + polling (pengganti SSE di serverless) ---------- */
+  /* ---------- Data + polling ---------- */
   async function loadItems() {
     try {
       const r = await api('/api/items');
+      const snapshot = JSON.stringify(r.items);
+      $('#liveDot').classList.add('on');
+      if (snapshot === lastSnapshot) return; // tidak ada perubahan -> jangan gambar ulang
+      const ae = document.activeElement;
+      if (ae && ae.tagName === 'SELECT' && ae.closest('.item-list')) {
+        state.items = r.items; lastSnapshot = snapshot; return;
+      }
+      lastSnapshot = snapshot;
       state.items = r.items;
       render();
-      $('#liveDot').classList.add('on');
     } catch (err) {
       $('#liveDot').classList.remove('on');
       toast(err.message, true);
@@ -111,7 +198,7 @@
     stopPolling();
     $('#liveDot').classList.add('on');
     pollTimer = setInterval(() => {
-      if (document.visibilityState === 'visible') loadItems();
+      if (document.visibilityState === 'visible') { loadItems(); loadStatuses(); }
     }, POLL_MS);
   }
   function stopPolling() {
@@ -179,10 +266,13 @@
     $('#emptyState').classList.add('hidden');
 
     list.innerHTML = items.map((it) => {
-      const done = it.status === 'dikembalikan';
+      const meta = statusMeta(it.status);
+      const done = !!meta.isDone;
       const mine = isMine(it);
-      const options = Object.keys(STATUS_SHORT).map((v) =>
-        `<option value="${v}" ${it.status === v ? 'selected' : ''}>${STATUS_SHORT[v]}</option>`
+      const optList = state.statuses.slice();
+      if (!optList.some((s) => s.key === it.status)) optList.push({ key: it.status, label: meta.label, isDone: false });
+      const options = optList.map((s) =>
+        `<option value="${s.key}" ${it.status === s.key ? 'selected' : ''}>${esc(s.label)}</option>`
       ).join('');
       const subParts = [];
       if (it.keterangan) subParts.push('📝 ' + esc(it.keterangan));
@@ -198,7 +288,7 @@
                 <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
               </button>
             </div>`
-        : `<span class="status-pill p-${it.status}" title="Hanya bisa dilihat (diinput oleh orang lain)">${STATUS_SHORT[it.status]}</span>`;
+        : `<span class="status-pill p-${it.status}" title="Hanya bisa dilihat (diinput oleh orang lain)">${esc(meta.label)}</span>`;
       return `
         <article class="item-card st-${it.status} ${done ? 'done' : ''} ${mine ? '' : 'viewonly'}" data-id="${it.id}">
           <div class="item-main">
@@ -224,8 +314,10 @@
       await api('/api/items/' + id, { method: 'PUT', body: JSON.stringify({ status }) });
       const it = state.items.find((x) => x.id === id);
       if (it) it.status = status;
+      lastSnapshot = JSON.stringify(state.items);
       render();
-      toast(status === 'dikembalikan' ? 'Ditandai sudah dikembalikan ✓' : 'Status diperbarui: ' + STATUS_LABEL[status]);
+      const meta = statusMeta(status);
+      toast(meta.isDone ? 'Ditandai selesai ✓' : 'Status diperbarui: ' + meta.label);
     } catch (err) { toast(err.message, true); loadItems(); }
   });
 
@@ -242,12 +334,15 @@
     if (action === 'edit') openModal(item);
     if (action === 'delete') {
       if (!confirm(`Hapus "${item.nama}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+      showOverlay('Menghapus…');
       try {
         await api('/api/items/' + id, { method: 'DELETE' });
         state.items = state.items.filter((x) => x.id !== id);
+        lastSnapshot = JSON.stringify(state.items);
         render();
         toast('Barang dihapus');
       } catch (err) { toast(err.message, true); }
+      finally { hideOverlay(); }
     }
   });
 
@@ -272,7 +367,7 @@
     $('#itemId').value = item ? item.id : '';
     $('#namaInput').value = item ? item.nama : '';
     $('#jumlahInput').value = item ? item.jumlah : 1;
-    $('#statusInput').value = item ? item.status : 'dipakai';
+    fillStatusSelect(item ? item.status : (state.statuses[0] || {}).key || 'dipakai');
     $('#keteranganInput').value = item ? (item.keterangan || '') : '';
     $('#itemError').textContent = '';
     $('#modalBackdrop').classList.remove('hidden');
@@ -297,6 +392,8 @@
     $('#itemError').textContent = '';
     if (!payload.nama) { $('#itemError').textContent = 'Nama barang wajib diisi'; return; }
     if (!Number.isFinite(payload.jumlah) || payload.jumlah < 0) { $('#itemError').textContent = 'Jumlah harus angka 0 atau lebih'; return; }
+    const saveBtn = $('#saveBtn');
+    setBtnLoading(saveBtn, true, 'Menyimpan…');
     try {
       if (id) {
         await api('/api/items/' + id, { method: 'PUT', body: JSON.stringify(payload) });
@@ -308,7 +405,21 @@
       closeModal();
       loadItems();
     } catch (err) { $('#itemError').textContent = err.message; }
+    finally { setBtnLoading(saveBtn, false); }
   });
+
+  /* ---------- Tambah tombol "kelola status" di form ---------- */
+  (function initAddStatusBtn() {
+    const sel = $('#statusInput');
+    if (!sel || $('#addStatusBtn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'addStatusBtn';
+    btn.textContent = '＋ Tambah status';
+    btn.style.cssText = 'margin-top:7px;background:none;border:0;color:var(--primary);font-size:12.5px;font-weight:700;padding:2px 0;cursor:pointer;text-align:left;';
+    sel.parentNode.appendChild(btn);
+    btn.addEventListener('click', onAddStatus);
+  })();
 
   /* ---------- Boot ---------- */
   async function boot() {
@@ -318,7 +429,13 @@
       state.user = r.user;
       $('#whoami').textContent = r.user.username;
       showApp();
-      loadItems();
+      showOverlay('Memuat data…');
+      try {
+        await loadStatuses();
+        await loadItems();
+      } finally {
+        hideOverlay();
+      }
       startPolling();
     } catch (e) {
       showAuth();
@@ -326,7 +443,6 @@
   }
   boot();
 
-  // daftarkan service worker (PWA install di HTTPS Vercel)
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').catch(() => {});

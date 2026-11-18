@@ -42,6 +42,22 @@ export function init() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
+      await sql`CREATE TABLE IF NOT EXISTS statuses (
+        id BIGSERIAL PRIMARY KEY,
+        key TEXT UNIQUE NOT NULL,
+        label TEXT NOT NULL,
+        is_done BOOLEAN NOT NULL DEFAULT false,
+        sort INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+      const cnt = await sql`SELECT COUNT(*)::int AS n FROM statuses`;
+      if (((cnt[0] && cnt[0].n) || 0) === 0) {
+        await sql`INSERT INTO statuses (key, label, is_done, sort) VALUES
+          ('dipakai','Dipakai',false,1),
+          ('dipinjam','Dipinjam',false,2),
+          ('dikembalikan','Dikembalikan',true,3)
+          ON CONFLICT (key) DO NOTHING`;
+      }
     })().catch((e) => {
       ready = null;
       throw e;

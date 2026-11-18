@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const nama = String(body.nama || '').trim();
       const jumlah = parseInt(body.jumlah, 10);
-      const status = STATUSES.includes(body.status) ? body.status : 'dipakai';
+      const status = String(body.status || 'dipakai').trim().slice(0, 30) || 'dipakai';
       const keterangan = String(body.keterangan || '').trim();
       if (!nama) return res.status(400).json({ error: 'Nama barang wajib diisi' });
       if (!Number.isFinite(jumlah) || jumlah < 0) return res.status(400).json({ error: 'Jumlah harus angka 0 atau lebih' });

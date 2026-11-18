@@ -8,6 +8,15 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_name_lower_idx ON users (lower(name));
 
+CREATE TABLE IF NOT EXISTS statuses (
+  id         BIGSERIAL PRIMARY KEY,
+  key        TEXT UNIQUE NOT NULL,
+  label      TEXT NOT NULL,
+  is_done    BOOLEAN NOT NULL DEFAULT false,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS items (
   id              BIGSERIAL PRIMARY KEY,
   nama            TEXT NOT NULL,
