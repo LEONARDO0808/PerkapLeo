@@ -60,6 +60,7 @@ export function init() {
           ('dikembalikan','Dikembalikan',true,3)
           ON CONFLICT (key) DO NOTHING`;
       }
+      await sql`UPDATE statuses SET is_done = true WHERE lower(key) LIKE '%kembali%' AND is_done = false`;
     })().catch((e) => {
       ready = null;
       throw e;

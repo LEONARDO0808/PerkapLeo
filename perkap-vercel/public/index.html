@@ -20,7 +20,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261120d" />
+  <link rel="stylesheet" href="/styles.css?v=20261120g" />
 </head>
 <body>
 
@@ -73,13 +73,21 @@
     <div class="toolbar">
       <div class="search-wrap">
         <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
-        <input id="searchInput" type="search" placeholder="Cari barang…" />
+        <input id="searchInput" type="search" placeholder="Cari barang / peminjam…" />
       </div>
       <div class="filter-row">
-        <select id="filterSelect" class="filter-select" aria-label="Filter status">
-          <option value="all">Semua status</option>
-        </select>
+        <div class="status-tabs" id="statusTabs"></div>
         <button type="button" id="importBtn" class="btn-impor">⬆ Impor</button>
+      </div>
+      <div class="filter-row2">
+        <select id="sortSelect" class="mini-select" aria-label="Urutkan">
+          <option value="new">Urut: Terbaru</option>
+          <option value="az">Nama A–Z</option>
+          <option value="za">Nama Z–A</option>
+        </select>
+        <select id="peminjamSelect" class="mini-select" aria-label="Filter peminjam">
+          <option value="all">Semua peminjam</option>
+        </select>
       </div>
     </div>
 
@@ -197,6 +205,6 @@
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120d"></script>
+<script src="/app.js?v=20261120g"></script>
 </body>
 </html>

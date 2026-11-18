@@ -18,6 +18,8 @@
     items: [],
     statuses: DEFAULT_STATUSES.slice(),
     filter: 'all',
+    sort: 'new',
+    peminjam: 'all',
     search: '',
   };
   let pollTimer = null;
@@ -129,6 +131,13 @@
   function statusMeta(key) {
     return state.statuses.find((s) => s.key === key) || { key, label: key, isDone: key === 'dikembalikan' };
   }
+  function isDoneStatus(it) {
+    const meta = statusMeta(it.status);
+    if (meta && meta.isDone === true) return true;
+    const k = String(it.status || '').toLowerCase();
+    const lab = String((meta && meta.label) || '').toLowerCase();
+    return k === 'dikembalikan' || k === 'kembali' || k.includes('kembali') || lab.includes('kembali');
+  }
   async function loadStatuses() {
     try {
       const r = await api('/api/statuses');
@@ -137,19 +146,44 @@
         if (snap !== lastStatusSnapshot) {
           lastStatusSnapshot = snap;
           state.statuses = r.statuses;
-          populateFilters();
+          renderTabs();
         }
       }
     } catch (e) { /* tetap pakai default */ }
   }
-  function populateFilters() {
-    const sel = $('#filterSelect');
+  function renderTabs() {
+    const wrap = $('#statusTabs');
+    if (!wrap) return;
+    const list = state.statuses.map((s) => ({ key: s.key, label: s.label }));
+    for (const it of state.items) {
+      if (!list.some((k) => k.key === it.status)) list.push({ key: it.status, label: statusMeta(it.status).label });
+    }
+    const counts = { all: state.items.length };
+    for (const k of list) counts[k.key] = 0;
+    for (const it of state.items) counts[it.status] = (counts[it.status] || 0) + 1;
+    if (state.filter !== 'all' && !list.some((k) => k.key === state.filter)) state.filter = 'all';
+    let html = `<button class="tab-chip ${state.filter === 'all' ? 'active' : ''}" data-key="all" type="button">Semua <span class="cnt">${counts.all}</span></button>`;
+    for (const k of list) {
+      html += `<button class="tab-chip ${state.filter === k.key ? 'active' : ''}" data-key="${esc(k.key)}" type="button">${esc(k.label)} <span class="cnt">${counts[k.key] || 0}</span></button>`;
+    }
+    wrap.innerHTML = html;
+  }
+  function renderPeminjamOptions() {
+    const sel = $('#peminjamSelect');
     if (!sel) return;
-    const cur = state.filter;
-    sel.innerHTML = '<option value="all">Semua status</option>' +
-      state.statuses.map((s) => `<option value="${esc(s.key)}">${esc(s.label)}</option>`).join('');
-    if (cur && (cur === 'all' || state.statuses.some((s) => s.key === cur))) sel.value = cur;
-    else { sel.value = 'all'; state.filter = 'all'; }
+    const set = new Set();
+    for (const it of state.items) {
+      const meta = statusMeta(it.status);
+      const isPinjam = it.status === 'dipinjam' || String(meta.label || '').toLowerCase().includes('pinjam');
+      const ket = (it.keterangan || '').trim();
+      if (isPinjam && ket) set.add(ket);
+    }
+    const vals = [...set].sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+    const cur = state.peminjam;
+    const html = '<option value="all">Semua peminjam</option>' +
+      vals.map((v) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join('');
+    sel.innerHTML = html;
+    if (cur !== 'all' && !vals.includes(cur)) { sel.value = 'all'; state.peminjam = 'all'; }
   }
   function fillStatusSelect(selectedKey) {
     const sel = $('#statusInput');
@@ -307,14 +341,29 @@
 
   function filteredItems() {
     const q = state.search.trim().toLowerCase();
-    return state.items.filter((it) => {
+    const pk = state.peminjam !== 'all' ? state.peminjam.toLowerCase() : '';
+    let arr = state.items.filter((it) => {
       if (state.filter !== 'all' && it.status !== state.filter) return false;
-      if (!q) return true;
-      return (it.nama || '').toLowerCase().includes(q) || (it.keterangan || '').toLowerCase().includes(q);
+      if (pk && !(it.keterangan || '').toLowerCase().includes(pk)) return false;
+      if (q) {
+        const inNama = (it.nama || '').toLowerCase().includes(q);
+        const inKet = (it.keterangan || '').toLowerCase().includes(q);
+        if (!inNama && !inKet) return false;
+      }
+      return true;
     });
+    if (state.sort === 'az' || state.sort === 'za') {
+      arr = arr.slice().sort((a, b) => {
+        const c = String(a.nama || '').localeCompare(String(b.nama || ''), 'id', { sensitivity: 'base' });
+        return state.sort === 'az' ? c : -c;
+      });
+    }
+    return arr;
   }
 
   function render() {
+    renderTabs();
+    renderPeminjamOptions();
     renderStats();
     const list = $('#itemList');
     const items = filteredItems();
@@ -331,7 +380,7 @@
 
     list.innerHTML = items.map((it) => {
       const meta = statusMeta(it.status);
-      const done = !!meta.isDone;
+      const done = isDoneStatus(it);
       const mine = isMine(it);
       const optList = state.statuses.slice();
       if (!optList.some((s) => s.key === it.status)) optList.push({ key: it.status, label: meta.label, isDone: false });
@@ -358,7 +407,7 @@
           <div class="item-main">
             <div class="item-line">
               <span class="item-name" title="${esc(it.nama)}">${esc(it.nama)}</span>
-              <span class="item-qty">${esc(it.jumlah)} ${esc(it.satuan || 'unit')}</span>
+              <span class="item-qty"><b>${esc(it.jumlah)}</b> ${esc(it.satuan || 'unit')}</span>
             </div>
             ${sub ? `<div class="item-sub">${sub}</div>` : ''}
           </div>
@@ -380,8 +429,7 @@
       if (it) it.status = status;
       lastSnapshot = JSON.stringify(state.items);
       render();
-      const meta = statusMeta(status);
-      toast(meta.isDone ? 'Ditandai selesai ✓' : 'Status diperbarui: ' + meta.label);
+      toast(isDoneStatus({ status }) ? 'Ditandai selesai ✓' : 'Status diperbarui: ' + statusMeta(status).label);
     } catch (err) { toast(err.message, true); loadItems(); }
   });
 
@@ -416,11 +464,15 @@
     }
   });
 
-  /* ---------- Filters & search ---------- */
-  $('#filterSelect').addEventListener('change', (e) => {
-    state.filter = e.target.value;
+  /* ---------- Tabs status & search ---------- */
+  $('#statusTabs').addEventListener('click', (e) => {
+    const b = e.target.closest('.tab-chip');
+    if (!b) return;
+    state.filter = b.dataset.key;
     render();
   });
+  $('#sortSelect').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
+  $('#peminjamSelect').addEventListener('change', (e) => { state.peminjam = e.target.value; render(); });
   let searchTimer;
   $('#searchInput').addEventListener('input', (e) => {
     clearTimeout(searchTimer);
