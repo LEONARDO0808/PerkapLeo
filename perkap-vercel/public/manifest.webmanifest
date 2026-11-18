@@ -1,0 +1,16 @@
+{
+  "name": "Perkap - Inventaris Barang Acara",
+  "short_name": "Perkap",
+  "description": "Aplikasi inventaris barang untuk acara: tambah, ubah, hapus, atur jumlah dan status barang (dipakai / dipinjam / dikembalikan).",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f5fb",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
