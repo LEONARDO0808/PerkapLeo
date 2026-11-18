@@ -35,6 +35,7 @@ export function init() {
         id BIGSERIAL PRIMARY KEY,
         nama TEXT NOT NULL,
         jumlah INTEGER NOT NULL DEFAULT 0,
+        satuan TEXT,
         status TEXT NOT NULL DEFAULT 'dipakai',
         keterangan TEXT,
         created_by_id BIGINT,
@@ -42,6 +43,7 @@ export function init() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
+      await sql`ALTER TABLE items ADD COLUMN IF NOT EXISTS satuan TEXT`;
       await sql`CREATE TABLE IF NOT EXISTS statuses (
         id BIGSERIAL PRIMARY KEY,
         key TEXT UNIQUE NOT NULL,

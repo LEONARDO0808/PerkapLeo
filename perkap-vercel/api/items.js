@@ -8,6 +8,7 @@ export function mapItem(r) {
     id: String(r.id),
     nama: r.nama,
     jumlah: r.jumlah,
+    satuan: r.satuan || '',
     status: r.status,
     keterangan: r.keterangan || '',
     createdById: r.created_by_id != null ? String(r.created_by_id) : null,
@@ -33,13 +34,14 @@ export default async function handler(req, res) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const nama = String(body.nama || '').trim();
       const jumlah = parseInt(body.jumlah, 10);
+      const satuan = String(body.satuan || '').trim().slice(0, 20);
       const status = String(body.status || 'dipakai').trim().slice(0, 30) || 'dipakai';
       const keterangan = String(body.keterangan || '').trim();
       if (!nama) return res.status(400).json({ error: 'Nama barang wajib diisi' });
       if (!Number.isFinite(jumlah) || jumlah < 0) return res.status(400).json({ error: 'Jumlah harus angka 0 atau lebih' });
 
-      const rows = await sql`INSERT INTO items (nama, jumlah, status, keterangan, created_by_id, created_by_name)
-        VALUES (${nama}, ${jumlah}, ${status}, ${keterangan}, ${Number(u.id)}, ${u.name}) RETURNING *`;
+      const rows = await sql`INSERT INTO items (nama, jumlah, satuan, status, keterangan, created_by_id, created_by_name)
+        VALUES (${nama}, ${jumlah}, ${satuan}, ${status}, ${keterangan}, ${Number(u.id)}, ${u.name}) RETURNING *`;
       return res.status(201).json({ item: mapItem(rows[0]) });
     }
 

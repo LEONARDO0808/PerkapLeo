@@ -22,6 +22,7 @@
   };
   let pollTimer = null;
   let lastSnapshot = null;
+  let lastStatusSnapshot = null;
 
   /* ---------- API helper ---------- */
   async function api(path, opts = {}) {
@@ -50,7 +51,7 @@
   /* ---------- Loading (overlay & tombol) ---------- */
   function showOverlay(text) {
     const o = $('#loadingOverlay'); if (!o) return;
-    const t = o.querySelector('.loading-text'); if (t) t.textContent = text || 'Memuat…';
+    const t = $('#loadingLabel'); if (t) t.textContent = text || 'Memuat…';
     o.classList.remove('hidden');
   }
   function hideOverlay() { const o = $('#loadingOverlay'); if (o) o.classList.add('hidden'); }
@@ -66,6 +67,46 @@
       btn.disabled = false;
       if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml;
     }
+  }
+
+  /* ---------- Dialog popup (tengah) pengganti prompt/confirm ---------- */
+  function openDialog(opts = {}) {
+    return new Promise((resolve) => {
+      const bd = $('#dialogBackdrop');
+      $('#dialogTitle').textContent = opts.title || '';
+      const msg = $('#dialogMsg');
+      if (opts.message) { msg.textContent = opts.message; msg.classList.remove('hidden'); }
+      else msg.classList.add('hidden');
+      const inp = $('#dialogInput');
+      if (opts.input) { inp.classList.remove('hidden'); inp.placeholder = opts.input.placeholder || ''; inp.value = opts.input.value || ''; }
+      else inp.classList.add('hidden');
+      const cw = $('#dialogCheckWrap');
+      if (opts.checkbox) { cw.classList.remove('hidden'); $('#dialogCheckLabel').textContent = opts.checkbox.label || ''; $('#dialogCheck').checked = !!opts.checkbox.checked; }
+      else cw.classList.add('hidden');
+      const ok = $('#dialogOk'), cancel = $('#dialogCancel');
+      ok.textContent = opts.okText || 'OK';
+      cancel.textContent = opts.cancelText || 'Batal';
+      ok.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-primary');
+      bd.classList.remove('hidden');
+      setTimeout(() => { if (opts.input) inp.focus(); else ok.focus(); }, 80);
+
+      function done(res) {
+        bd.classList.add('hidden');
+        ok.onclick = null; cancel.onclick = null; bd.onclick = null; inp.onkeydown = null;
+        document.removeEventListener('keydown', onKey);
+        resolve(res);
+      }
+      function onKey(e) { if (e.key === 'Escape') done({ ok: false }); }
+      ok.onclick = () => done({ ok: true, value: opts.input ? inp.value.trim() : undefined, checked: opts.checkbox ? $('#dialogCheck').checked : undefined });
+      cancel.onclick = () => done({ ok: false });
+      bd.onclick = (e) => { if (e.target === bd) done({ ok: false }); };
+      inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } };
+      document.addEventListener('keydown', onKey);
+    });
+  }
+  async function confirmDialog(opts) {
+    const r = await openDialog({ title: opts.title, message: opts.message, okText: opts.okText || 'OK', cancelText: 'Batal', danger: !!opts.danger });
+    return r.ok;
   }
 
   /* ---------- Theme (gelap/terang) ---------- */
@@ -91,8 +132,24 @@
   async function loadStatuses() {
     try {
       const r = await api('/api/statuses');
-      if (r.statuses && r.statuses.length) state.statuses = r.statuses;
+      if (r.statuses && r.statuses.length) {
+        const snap = JSON.stringify(r.statuses);
+        if (snap !== lastStatusSnapshot) {
+          lastStatusSnapshot = snap;
+          state.statuses = r.statuses;
+          populateFilters();
+        }
+      }
     } catch (e) { /* tetap pakai default */ }
+  }
+  function populateFilters() {
+    const sel = $('#filterSelect');
+    if (!sel) return;
+    const cur = state.filter;
+    sel.innerHTML = '<option value="all">Semua status</option>' +
+      state.statuses.map((s) => `<option value="${esc(s.key)}">${esc(s.label)}</option>`).join('');
+    if (cur && (cur === 'all' || state.statuses.some((s) => s.key === cur))) sel.value = cur;
+    else { sel.value = 'all'; state.filter = 'all'; }
   }
   function fillStatusSelect(selectedKey) {
     const sel = $('#statusInput');
@@ -106,17 +163,24 @@
     ).join('');
   }
   async function onAddStatus() {
-    const label = (window.prompt('Nama status baru (mis. Rusak, Hilang, Cadangan):') || '').trim();
-    if (!label) return;
-    const isDone = window.confirm(
-      'Tandai status ini sebagai SELESAI?\n\nOK = saat status ini dipilih, nama barang TERCORET (tanda selesai).\nBatal = status biasa (tidak tercoret).'
-    );
+    const res = await openDialog({
+      title: 'Tambah Status',
+      message: 'Nama status baru. Centang bila berarti selesai (barang tercoret).',
+      input: { placeholder: 'mis. Rusak / Hilang / Cadangan' },
+      checkbox: { label: 'Selesai (barang tercoret)', checked: false },
+      okText: 'Simpan',
+    });
+    if (!res.ok) return;
+    const label = (res.value || '').trim();
+    if (!label) { toast('Nama status wajib diisi', true); return; }
+    showOverlay('Menyimpan status…');
     try {
-      const r = await api('/api/statuses', { method: 'POST', body: JSON.stringify({ label, isDone }) });
+      const r = await api('/api/statuses', { method: 'POST', body: JSON.stringify({ label, isDone: res.checked }) });
       await loadStatuses();
       fillStatusSelect(r.status.key);
       toast('Status "' + r.status.label + '" ditambahkan');
     } catch (err) { toast(err.message, true); }
+    finally { hideOverlay(); }
   }
 
   /* ---------- Auth screen ---------- */
@@ -294,7 +358,7 @@
           <div class="item-main">
             <div class="item-line">
               <span class="item-name" title="${esc(it.nama)}">${esc(it.nama)}</span>
-              <span class="item-qty">${esc(it.jumlah)} unit</span>
+              <span class="item-qty">${esc(it.jumlah)} ${esc(it.satuan || 'unit')}</span>
             </div>
             ${sub ? `<div class="item-sub">${sub}</div>` : ''}
           </div>
@@ -333,7 +397,13 @@
 
     if (action === 'edit') openModal(item);
     if (action === 'delete') {
-      if (!confirm(`Hapus "${item.nama}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+      const okDel = await confirmDialog({
+        title: 'Hapus Barang',
+        message: `Hapus "${item.nama}"? Tindakan ini tidak bisa dibatalkan.`,
+        okText: 'Hapus',
+        danger: true,
+      });
+      if (!okDel) return;
       showOverlay('Menghapus…');
       try {
         await api('/api/items/' + id, { method: 'DELETE' });
@@ -347,11 +417,8 @@
   });
 
   /* ---------- Filters & search ---------- */
-  $('#filters').addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    state.filter = chip.dataset.filter;
-    document.querySelectorAll('#filters .chip').forEach((c) => c.classList.toggle('active', c === chip));
+  $('#filterSelect').addEventListener('change', (e) => {
+    state.filter = e.target.value;
     render();
   });
   let searchTimer;
@@ -367,6 +434,7 @@
     $('#itemId').value = item ? item.id : '';
     $('#namaInput').value = item ? item.nama : '';
     $('#jumlahInput').value = item ? item.jumlah : 1;
+    $('#satuanInput').value = item ? (item.satuan || '') : '';
     fillStatusSelect(item ? item.status : (state.statuses[0] || {}).key || 'dipakai');
     $('#keteranganInput').value = item ? (item.keterangan || '') : '';
     $('#itemError').textContent = '';
@@ -386,6 +454,7 @@
     const payload = {
       nama: $('#namaInput').value.trim(),
       jumlah: parseInt($('#jumlahInput').value, 10),
+      satuan: $('#satuanInput').value.trim(),
       status: $('#statusInput').value,
       keterangan: $('#keteranganInput').value.trim(),
     };
@@ -407,6 +476,69 @@
     } catch (err) { $('#itemError').textContent = err.message; }
     finally { setBtnLoading(saveBtn, false); }
   });
+
+  /* ---------- Impor (tempel banyak baris) ---------- */
+  function openImport() {
+    $('#importText').value = '';
+    $('#importError').textContent = '';
+    $('#importBackdrop').classList.remove('hidden');
+    setTimeout(() => $('#importText').focus(), 100);
+  }
+  function closeImport() { $('#importBackdrop').classList.add('hidden'); }
+  $('#importBtn').addEventListener('click', openImport);
+  $('#importClose').addEventListener('click', closeImport);
+  $('#importCancel').addEventListener('click', closeImport);
+  $('#importBackdrop').addEventListener('click', (e) => { if (e.target.id === 'importBackdrop') closeImport(); });
+
+  function parseImport(text) {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const rows = [];
+    for (const line of lines) {
+      let delim = '\t';
+      if (line.includes('\t')) delim = '\t';
+      else if (line.includes('|')) delim = '|';
+      else if (line.includes(';')) delim = ';';
+      else delim = ',';
+      let parts = line.split(delim).map((s) => s.trim());
+      if (parts.length >= 6 && /^\d+$/.test(parts[0])) parts = parts.slice(1); // buang kolom "No"
+      const nama = parts[0] || '';
+      if (!nama || /^(no\.?|nama|jenis|nama barang)$/i.test(nama)) continue;
+      const jumlah = parseInt(parts[1], 10);
+      const satuan = parts[2] || '';
+      const statusRaw = (parts[3] || '').toLowerCase();
+      const keterangan = parts.slice(4).join(' ').trim();
+      let status = 'dipakai';
+      if (statusRaw.includes('kembali')) status = 'dikembalikan';
+      else if (statusRaw.includes('pinjam')) status = 'dipinjam';
+      else if (statusRaw.includes('pakai') || statusRaw.includes('beli') || statusRaw === '') status = 'dipakai';
+      else status = statusRaw.slice(0, 30);
+      rows.push({ nama, jumlah: Number.isFinite(jumlah) ? jumlah : 0, satuan, status, keterangan });
+    }
+    return rows;
+  }
+
+  async function runImport() {
+    const rows = parseImport($('#importText').value);
+    if (!rows.length) { $('#importError').textContent = 'Tidak ada data yang bisa diimpor.'; return; }
+    $('#importError').textContent = '';
+    const btn = $('#importSave');
+    setBtnLoading(btn, true, 'Mengimpor…');
+    let ok = 0, fail = 0;
+    try {
+      for (let i = 0; i < rows.length; i++) {
+        showOverlay('Mengimpor ' + (i + 1) + '/' + rows.length + '…');
+        try { await api('/api/items', { method: 'POST', body: JSON.stringify(rows[i]) }); ok++; }
+        catch (e) { fail++; }
+      }
+    } finally {
+      hideOverlay();
+      setBtnLoading(btn, false);
+    }
+    closeImport();
+    await loadItems();
+    toast(ok + ' barang diimpor' + (fail ? (' • ' + fail + ' gagal') : ''));
+  }
+  $('#importSave').addEventListener('click', runImport);
 
   /* ---------- Tambah tombol "kelola status" di form ---------- */
   (function initAddStatusBtn() {

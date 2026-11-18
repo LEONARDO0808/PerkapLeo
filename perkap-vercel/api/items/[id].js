@@ -32,6 +32,7 @@ export default async function handler(req, res) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       let nama = item.nama;
       let jumlah = item.jumlah;
+      let satuan = item.satuan || '';
       let status = item.status;
       let keterangan = item.keterangan;
 
@@ -49,8 +50,9 @@ export default async function handler(req, res) {
         status = s;
       }
       if (body.keterangan !== undefined) keterangan = String(body.keterangan).trim();
+      if (body.satuan !== undefined) satuan = String(body.satuan).trim().slice(0, 20);
 
-      const upd = await sql`UPDATE items SET nama=${nama}, jumlah=${jumlah}, status=${status}, keterangan=${keterangan}, updated_at=now()
+      const upd = await sql`UPDATE items SET nama=${nama}, jumlah=${jumlah}, satuan=${satuan}, status=${status}, keterangan=${keterangan}, updated_at=now()
         WHERE id=${id} RETURNING *`;
       return res.status(200).json({ item: mapItem(upd[0]) });
     }
