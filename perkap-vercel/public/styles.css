@@ -13,8 +13,8 @@
   --grad-accent: linear-gradient(135deg, #ff416c 0%, #ff8a00 100%);
   --danger: #ef4444;
 
-  --bg: #eceffb;
-  --bg-2: #f7f8ff;
+  --bg: #f2f4fc;
+  --bg-2: #ffffff;
   --card: rgba(255, 255, 255, 0.84);
   --card-solid: #ffffff;
   --glass-border: rgba(255, 255, 255, 0.7);
@@ -95,15 +95,16 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
+html { background: var(--bg); }
 body {
   font-family: var(--font);
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   background:
-    radial-gradient(900px 620px at 8% -12%, rgba(109, 92, 255, 0.30), transparent 60%),
-    radial-gradient(820px 620px at 112% 6%, rgba(236, 72, 153, 0.22), transparent 55%),
-    radial-gradient(900px 720px at 50% 122%, rgba(56, 189, 248, 0.20), transparent 60%),
+    radial-gradient(900px 620px at 8% -12%, rgba(109, 92, 255, 0.14), transparent 60%),
+    radial-gradient(820px 620px at 112% 6%, rgba(236, 72, 153, 0.10), transparent 55%),
+    radial-gradient(900px 720px at 50% 122%, rgba(56, 189, 248, 0.10), transparent 60%),
     linear-gradient(180deg, var(--bg), var(--bg-2));
   background-attachment: fixed;
   transition: background .3s, color .25s;
@@ -518,6 +519,9 @@ input, select, textarea { font-family: inherit; }
 .toast.err { background: rgba(239, 68, 68, .95); border-color: rgba(255,255,255,.2); }
 
 /* ================= Mobile: kartu bertumpuk agar teks tampil semua ================= */
+@media (max-width: 700px) {
+  body { background-attachment: scroll; }
+}
 @media (max-width: 600px) {
   .item-card { flex-wrap: wrap; align-items: flex-start; row-gap: 9px; padding: 13px 13px 11px; }
   .item-main { flex: 1 1 100%; width: 100%; }

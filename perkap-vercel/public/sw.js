@@ -1,6 +1,6 @@
 /* Service worker: network-first agar update selalu tampil saat online,
    dengan fallback cache untuk koneksi lambat / offline tipis */
-const CACHE = 'perkap-v2';
+const CACHE = 'perkap-v3';
 const ASSETS = [
   '/',
   '/index.html',
