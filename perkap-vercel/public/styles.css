@@ -94,7 +94,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; }
 html { background: var(--bg); }
 body {
   font-family: var(--font);
@@ -135,6 +135,8 @@ input, select, textarea { font-family: inherit; }
   display: flex; align-items: center; justify-content: center;
   padding: 22px;
   position: relative;
+  overflow-x: hidden;
+  width: 100%;
 }
 .auth-screen::before {
   content: ""; position: absolute; inset: 0;
@@ -823,12 +825,12 @@ select option,
 .auth-screen { background: linear-gradient(160deg, #0ea5a5 0%, #0b8f8a 45%, #053b3f 100%); }
 .auth-screen::before { content: ""; position: absolute; inset: auto; top: -70px; right: -70px; left: auto; bottom: auto; width: 260px; height: 260px; border-radius: 50%; background: rgba(255,255,255,.10); opacity: 1; }
 .auth-screen::after { content: ""; position: absolute; inset: auto; bottom: 70px; left: -60px; width: 190px; height: 190px; border-radius: 50%; background: rgba(255, 77, 109, .22); }
-.auth-screen .auth-card { background: var(--card-solid); position: relative; z-index: 1; }
+.auth-screen .auth-card { background: var(--card-solid); position: relative; z-index: 1; width: 100%; max-width: 420px; margin: 0 auto; }
 .auth-screen .brand-img-lg { box-shadow: 0 16px 40px rgba(0,0,0,.25), 0 0 0 8px rgba(255,255,255,.15); }
 
 /* Ilustrasi animasi orang kerja sama (login) */
 .onboard-illustration { display: flex; justify-content: center; margin: 0 0 2px; }
-.onboard-illustration .illus { width: 100%; max-width: 300px; height: auto; overflow: visible; }
+.onboard-illustration .illus { width: 100%; max-width: 280px; height: auto; overflow: visible; }
 .auth-screen .brand-img-lg { width: 66px; height: 66px; border-radius: 18px; }
 .auth-screen .brand-auth { margin-bottom: 14px; gap: 8px; }
 .illus .per-a, .illus .per-b { transform-box: fill-box; transform-origin: center bottom; }
@@ -848,7 +850,7 @@ select option,
 .illus .sp { transform-box: fill-box; transform-origin: center; animation: spPulse 1.8s ease-in-out infinite; }
 .illus .sp2 { animation-delay: .5s; }
 @keyframes spPulse { 0%, 100% { opacity: .3; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
-@media (max-width: 600px) { .auth-screen { align-items: flex-start; padding: 16px; } }
+@media (max-width: 600px) { .auth-screen { padding: 16px; } }
 
 /* ================= Auto UPPERCASE tampilan input ================= */
 #namaInput, #satuanInput, #keteranganInput, #dialogInput, #profileNameInput, #importText,

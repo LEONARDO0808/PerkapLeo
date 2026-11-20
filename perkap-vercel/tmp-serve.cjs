@@ -12,4 +12,4 @@ http.createServer((req,res)=>{
     res.writeHead(200,{'Content-Type': mime[path.extname(fp)] || 'application/octet-stream'});
     res.end(b);
   });
-}).listen(4055, ()=>console.log('preview on 4055'));
+}).listen(4068, ()=>console.log('preview on 4068'));
