@@ -45,6 +45,11 @@ export default async function handler(req, res) {
       return res.status(201).json({ item: mapItem(rows[0]) });
     }
 
+    if (req.method === 'DELETE') {
+      await sql`DELETE FROM items`;
+      return res.status(200).json({ ok: true });
+    }
+
     return res.status(405).json({ error: 'Metode tidak diizinkan' });
   } catch (e) {
     console.error(e);

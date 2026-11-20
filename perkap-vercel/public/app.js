@@ -488,6 +488,54 @@
     toast(e.target.checked ? 'Mode konfirmasi suara: AKTIF' : 'Mode auto-simpan suara');
   });
 
+  /* ---------- Fitur "All": export & hapus semua ---------- */
+  function downloadFile(name, content, mime) {
+    try {
+      const blob = new Blob([content], { type: mime || 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 300);
+    } catch (e) { toast('Gagal membuat file.', true); }
+  }
+  const ejb = $('#exportJsonBtn');
+  if (ejb) ejb.addEventListener('click', () => {
+    if (!state.items.length) { toast('Belum ada data', true); return; }
+    const data = { exportedAt: new Date().toISOString(), user: state.user ? state.user.username : '', items: state.items };
+    downloadFile('perkap-semua-' + Date.now() + '.json', JSON.stringify(data, null, 2), 'application/json');
+    toast('Semua data disimpan (JSON)');
+  });
+  const ecb = $('#exportCsvBtn');
+  if (ecb) ecb.addEventListener('click', () => {
+    if (!state.items.length) { toast('Belum ada data', true); return; }
+    const rows = [['No', 'Nama', 'Qty', 'Satuan', 'Status', 'Keterangan', 'Diinput oleh']];
+    state.items.forEach((it, i) => { rows.push([i + 1, it.nama, it.jumlah, it.satuan || '', statusMeta(it.status).label, it.keterangan || '', it.createdBy || '']); });
+    const csv = rows.map((r) => r.map((c) => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+    downloadFile('perkap-semua-' + Date.now() + '.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
+    toast('Semua data disimpan (CSV)');
+  });
+  const dab = $('#deleteAllBtn');
+  if (dab) dab.addEventListener('click', async () => {
+    if (!state.items.length) { toast('Data sudah kosong'); return; }
+    const ok = await confirmDialog({ title: 'Hapus Semua Barang', message: 'Hapus SEMUA barang untuk semua orang? Tindakan ini PERMANEN.', okText: 'Hapus Semua', danger: true });
+    if (!ok) return;
+    if (!navigator.onLine) { toast('Butuh internet untuk hapus semua di server.', true); return; }
+    showOverlay('Menghapus semua…');
+    try {
+      await flushQueue();
+      await api('/api/items', { method: 'DELETE' });
+      state.items = [];
+      saveQueue([]);
+      lastSnapshot = JSON.stringify([]);
+      saveCache();
+      render();
+      closeProfile();
+      showResult('Semua barang dihapus', 'Data sudah kosong');
+    } catch (e) { toast('Gagal: ' + (e.message || 'error'), true); }
+    finally { hideOverlay(); }
+  });
+
   /* ---------- Data + polling ---------- */
   async function loadItems() {
     if (!navigator.onLine) { updateOnlineUI(); return; }
@@ -928,10 +976,10 @@
 
   /* ---------- Input suara (tambah barang via mikrofon) ---------- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null, voiceActive = false;
+  let recognition = null, voiceActive = false, voiceCancelled = false;
   function showVoiceOverlay(txt) { const b = $('#voiceBackdrop'); if (b) { $('#voiceText').textContent = txt || 'Mendengarkan…'; b.classList.remove('hidden'); } }
   function hideVoiceOverlay() { const b = $('#voiceBackdrop'); if (b) b.classList.add('hidden'); }
-  function stopVoice() { voiceActive = false; const v = $('#voiceBtn'); if (v) v.classList.remove('listening'); if (recognition) { try { recognition.stop(); } catch (e) {} } }
+  function stopVoice() { voiceActive = false; voiceCancelled = true; const v = $('#voiceBtn'); if (v) v.classList.remove('listening'); if (recognition) { try { recognition.stop(); } catch (e) {} } }
   function startVoice() {
     if (!SR) { toast('Input suara tidak didukung browser ini. Pakai Chrome/Edge di HP.', true); return; }
     if (voiceActive) { stopVoice(); hideVoiceOverlay(); return; }
@@ -942,6 +990,8 @@
     recognition.maxAlternatives = 3;
     let finalAlts = [];
     let lastShown = '';
+    let silenceTimer = null, maxTimer = null, gotSpeech = false;
+    voiceCancelled = false;
     recognition.onresult = (e) => {
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -953,21 +1003,33 @@
       const shown = (finalAlts.length ? finalAlts[0] : interim).trim();
       lastShown = shown;
       showVoiceOverlay(shown ? ('“' + shown + '”') : 'Mendengarkan…');
+      // Deteksi diam: setelah ada suara, jika hening ~1,1 dtk -> berhenti & proses
+      if (shown) {
+        gotSpeech = true;
+        if (silenceTimer) clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => { try { recognition.stop(); } catch (err) {} }, 1100);
+      }
     };
     recognition.onerror = (e) => {
       voiceActive = false; const v = $('#voiceBtn'); if (v) v.classList.remove('listening'); hideVoiceOverlay();
+      if (silenceTimer) clearTimeout(silenceTimer); if (maxTimer) clearTimeout(maxTimer);
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('Izin mikrofon ditolak. Aktifkan izin mic di browser.', true);
       else if (e.error === 'no-speech') showResult('Tidak terdengar', 'Coba bicara lebih dekat/keras.', true);
       else toast('Gagal mendengar (' + e.error + ').', true);
     };
     recognition.onend = () => {
       voiceActive = false; const v = $('#voiceBtn'); if (v) v.classList.remove('listening'); hideVoiceOverlay();
+      if (silenceTimer) clearTimeout(silenceTimer); if (maxTimer) clearTimeout(maxTimer);
+      if (voiceCancelled) { voiceCancelled = false; return; }
       const alts = finalAlts.length ? finalAlts : (lastShown ? [lastShown] : []);
       if (alts.length) chooseVoiceAndProcess(alts);
       else showResult('Tidak terdengar', 'Coba bicara lebih dekat/keras.', true);
     };
     voiceActive = true; const vb = $('#voiceBtn'); if (vb) vb.classList.add('listening'); showVoiceOverlay('Mendengarkan…');
-    try { recognition.start(); } catch (e) { voiceActive = false; if (vb) vb.classList.remove('listening'); hideVoiceOverlay(); toast('Tidak bisa mulai mikrofon.', true); }
+    try {
+      recognition.start();
+      maxTimer = setTimeout(() => { try { recognition.stop(); } catch (e) {} }, 9000);
+    } catch (e) { voiceActive = false; if (vb) vb.classList.remove('listening'); hideVoiceOverlay(); toast('Tidak bisa mulai mikrofon.', true); }
   }
   function parseIndoNumber(str) {
     str = String(str).trim();
@@ -1086,7 +1148,7 @@
   function chooseVoiceAndProcess(alts) {
     let best = null, bestScore = -1;
     for (const t of alts) { const p = parseVoice(t); const sc = scoreParsed(p); if (sc > bestScore) { bestScore = sc; best = p; } }
-    if (!best || !best.nama) { showResult('Suara kurang jelas', 'Coba lagi: “dipinjam 4 meja atas nama bariq”', true); return; }
+    if (!best || !best.nama) { showResult('Suara kurang jelas', 'Coba lagi: “dipinjam 4 meja atas nama LEO”', true); return; }
     processVoiceItem(best);
   }
   async function processVoiceItem(p) {

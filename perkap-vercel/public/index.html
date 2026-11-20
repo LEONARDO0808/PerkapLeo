@@ -20,7 +20,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261121q" />
+  <link rel="stylesheet" href="/styles.css?v=20261121s" />
 </head>
 <body>
 
@@ -236,6 +236,12 @@
       <span>Konfirmasi suara sebelum simpan<br /><small>(aktifkan saat tempat berisik/rame)</small></span>
       <input type="checkbox" id="voiceConfirmToggle" />
     </label>
+    <div class="admin-block">
+      <div class="admin-title">Kelola Data</div>
+      <button type="button" class="btn btn-ghost btn-block" id="exportJsonBtn">⬇️ Simpan Semua (Export JSON)</button>
+      <button type="button" class="btn btn-ghost btn-block" id="exportCsvBtn">📄 Export ke CSV (Excel)</button>
+      <button type="button" class="btn btn-danger btn-block" id="deleteAllBtn">🗑 Hapus Semua Barang</button>
+    </div>
     <input type="file" id="avatarFile" accept="image/*" class="hidden" />
     <div class="form-error" id="profileError"></div>
     <div class="modal-actions">
@@ -259,7 +265,7 @@
   <div class="voice-panel">
     <div class="voice-mic"><span class="voice-ring"></span><span class="voice-ring r2"></span><span class="voice-emoji">🎤</span></div>
     <div class="voice-text" id="voiceText">Mendengarkan…</div>
-    <div class="voice-hint">Contoh: “dipinjam 4 meja atas nama bariq”<br />Otomatis tersimpan (bisa diedit nanti).</div>
+    <div class="voice-hint">Contoh: “dipinjam 4 meja atas nama LEO”<br />Berhenti otomatis saat Anda diam → langsung diproses.</div>
     <button class="btn btn-ghost" id="voiceCancel" type="button">Batal</button>
   </div>
 </div>
@@ -276,6 +282,6 @@
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120q"></script>
+<script src="/app.js?v=20261120s"></script>
 </body>
 </html>
