@@ -208,17 +208,8 @@
   }
   function hideOverlay() { const o = $('#loadingOverlay'); if (o) o.classList.add('hidden'); }
   function setBtnLoading(btn, on, text) {
-    if (!btn) return;
-    if (on) {
-      if (!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
-      btn.classList.add('is-loading');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>' + (text ? ' ' + text : '');
-    } else {
-      btn.classList.remove('is-loading');
-      btn.disabled = false;
-      if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml;
-    }
+    if (btn) btn.disabled = !!on;
+    if (on) showOverlay(text || 'Memuat…'); else hideOverlay();
   }
 
   /* ---------- Dialog popup (tengah) pengganti prompt/confirm ---------- */
