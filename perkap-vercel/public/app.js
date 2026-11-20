@@ -679,6 +679,9 @@
 
   function renderStats() {
     const s = computeStats();
+    const hn = $('#heroName'); if (hn) hn.textContent = state.displayName || (state.user ? state.user.username : '—');
+    const hu = $('#heroUnits'); if (hu) hu.textContent = String(s.totalQty);
+    const hi = $('#heroItems'); if (hi) hi.textContent = String(s.total);
     const act = (k) => (state.filter === k ? ' active' : '');
     $('#stats').innerHTML = `
       <button type="button" class="stat total${act('all')}" data-key="all"><span class="num">${s.totalQty}</span><span class="lbl">Total Unit</span></button>
@@ -1259,6 +1262,13 @@
   $('#voiceBtn').addEventListener('click', startVoice);
   $('#voiceCancel').addEventListener('click', () => { stopVoice(); hideVoiceOverlay(); });
   $('#voiceBackdrop').addEventListener('click', (e) => { if (e.target.id === 'voiceBackdrop') { stopVoice(); hideVoiceOverlay(); } });
+
+  // bottom navigation
+  const navHomeEl = $('#navHome'), navAddEl = $('#navAdd'), navVoiceEl = $('#navVoice'), navProfileEl = $('#navProfile');
+  if (navHomeEl) navHomeEl.addEventListener('click', () => { state.filter = 'all'; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  if (navAddEl) navAddEl.addEventListener('click', () => openModal(null));
+  if (navVoiceEl) navVoiceEl.addEventListener('click', () => startVoice());
+  if (navProfileEl) navProfileEl.addEventListener('click', () => openProfile());
 
   /* ---------- Boot ---------- */
   async function boot() {

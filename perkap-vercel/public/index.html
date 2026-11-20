@@ -17,12 +17,12 @@
     #splash {
       position: fixed; inset: 0; z-index: 200;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-      background: radial-gradient(circle at 50% 40%, #241b52 0%, #060814 70%);
+      background: radial-gradient(circle at 50% 40%, #053b3f 0%, #060814 70%);
     }
     #splash .splash-logo { width: 112px; height: 112px; border-radius: 28px; background: #fff; padding: 6px; }
-    #splash .splash-name { color: #cfc8ff; font-weight: 800; font-size: 20px; letter-spacing: .04em; }
+    #splash .splash-name { color: #c7fbf6; font-weight: 800; font-size: 20px; letter-spacing: .04em; }
     #splash .splash-bar { width: 128px; height: 4px; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; }
-    #splash .splash-bar span { display: block; height: 100%; width: 40%; border-radius: 99px; background: linear-gradient(135deg, #8b7bff, #c084fc); }
+    #splash .splash-bar span { display: block; height: 100%; width: 40%; border-radius: 99px; background: linear-gradient(135deg, #2dd4bf, #67e8f9); }
   </style>
   <script>
     (function () {
@@ -33,7 +33,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261121y" />
+  <link rel="stylesheet" href="/styles.css?v=20261122d" />
 </head>
 <body>
 
@@ -48,8 +48,38 @@
 <section id="authScreen" class="auth-screen">
   <button class="icon-btn theme-btn theme-fab" title="Mode gelap/terang" type="button">🌙</button>
   <div class="auth-card">
+    <div class="onboard-illustration">
+      <svg class="illus" viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <ellipse cx="160" cy="184" rx="120" ry="12" fill="rgba(0,0,0,.08)" />
+        <circle cx="60" cy="52" r="30" fill="#bff3ef" opacity=".7" />
+        <circle cx="266" cy="42" r="22" fill="#ffd3dc" opacity=".7" />
+        <g class="fl fl1"><rect x="238" y="86" width="26" height="30" rx="4" fill="#ffd166" /><rect x="238" y="96" width="26" height="5" fill="#f4a261" /></g>
+        <g class="fl fl2"><rect x="52" y="96" width="24" height="18" rx="3" fill="#9ee7e1" /></g>
+        <g class="per per-a">
+          <ellipse cx="108" cy="178" rx="34" ry="7" fill="rgba(0,0,0,.10)" />
+          <rect x="84" y="120" width="48" height="58" rx="18" fill="#0ea5a5" />
+          <rect x="92" y="132" width="32" height="10" rx="5" fill="#0b8f8a" opacity=".5" />
+          <circle cx="108" cy="104" r="18" fill="#f2c9a0" />
+          <path d="M90 100a18 18 0 0 1 36 0q-18 -12 -36 0" fill="#3b2a20" />
+          <circle cx="102" cy="104" r="2" fill="#3b2a20" /><circle cx="114" cy="104" r="2" fill="#3b2a20" />
+          <path d="M103 111q5 4 10 0" stroke="#3b2a20" stroke-width="1.6" fill="none" stroke-linecap="round" />
+          <g class="arm arm-a"><rect x="126" y="126" width="26" height="10" rx="5" fill="#f2c9a0" /></g>
+        </g>
+        <g class="per per-b">
+          <ellipse cx="214" cy="178" rx="34" ry="7" fill="rgba(0,0,0,.10)" />
+          <rect x="190" y="118" width="48" height="60" rx="18" fill="#0f2f5b" />
+          <circle cx="214" cy="102" r="18" fill="#e8b58b" />
+          <path d="M196 98a18 18 0 0 1 36 0q-18 -10 -36 0" fill="#2b1d16" />
+          <circle cx="208" cy="102" r="2" fill="#2b1d16" /><circle cx="220" cy="102" r="2" fill="#2b1d16" />
+          <path d="M209 109q5 4 10 0" stroke="#2b1d16" stroke-width="1.6" fill="none" stroke-linecap="round" />
+          <g class="arm arm-b"><rect x="168" y="124" width="26" height="10" rx="5" fill="#e8b58b" /></g>
+        </g>
+        <g class="box"><rect x="140" y="118" width="40" height="34" rx="5" fill="#f59e0b" /><rect x="140" y="130" width="40" height="6" fill="#fbbf24" /><rect x="156" y="118" width="6" height="34" fill="#e07b00" /></g>
+        <g class="sp sp1"><path d="M150 70l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#0ea5a5" /></g>
+        <g class="sp sp2"><path d="M182 58l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#ff8a00" /></g>
+      </svg>
+    </div>
     <div class="brand brand-auth">
-      <img class="brand-img-lg" src="/icons/logo.png" alt="PERKAP KITA" />
       <h1>PERKAP KITA</h1>
       <p class="brand-sub">Inventaris Barang Acara</p>
     </div>
@@ -89,6 +119,16 @@
   <div id="offlineBar" class="offline-bar hidden">⚠️ Mode offline — perubahan tersimpan di HP &amp; akan sinkron saat internet kembali.</div>
 
   <main class="content">
+    <!-- hero -->
+    <div class="hero" id="hero">
+      <div class="hero-top">
+        <div class="hero-greet">Hai, <b id="heroName">—</b> 👋</div>
+        <div class="hero-badge">INVENTARIS</div>
+      </div>
+      <div class="hero-big"><b id="heroUnits">0</b><span> unit</span></div>
+      <div class="hero-sub"><span id="heroItems">0</span> jenis barang</div>
+    </div>
+
     <!-- statistik -->
     <div class="stats" id="stats"></div>
 
@@ -137,6 +177,14 @@
   <button class="fab-mic" id="voiceBtn" type="button" title="Tambah dengan suara">
     <svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
+
+  <!-- bottom navigation -->
+  <nav class="bottomnav">
+    <button class="bn-item active" id="navHome" type="button"><span class="bn-ic">🏠</span><span class="bn-lb">Beranda</span></button>
+    <button class="bn-item" id="navAdd" type="button"><span class="bn-ic">➕</span><span class="bn-lb">Tambah</span></button>
+    <button class="bn-item" id="navVoice" type="button"><span class="bn-ic">🎤</span><span class="bn-lb">Suara</span></button>
+    <button class="bn-item" id="navProfile" type="button"><span class="bn-ic">👤</span><span class="bn-lb">Profil</span></button>
+  </nav>
 </section>
 
 <!-- ================= MODAL FORM ================= -->
@@ -318,6 +366,6 @@
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120y"></script>
+<script src="/app.js?v=20261120z"></script>
 </body>
 </html>
