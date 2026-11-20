@@ -679,6 +679,58 @@ select option,
 }
 .live-dot.offline { background: var(--dipakai); }
 
+/* ================= Tombol suara & overlay ================= */
+.fab-mic {
+  position: fixed; right: 20px; bottom: calc(98px + env(safe-area-inset-bottom)); z-index: 40;
+  width: 56px; height: 56px; border-radius: 50%; border: 0;
+  background: var(--grad-accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 28px rgba(255, 65, 108, .5);
+  transition: transform .12s;
+}
+.fab-mic:active { transform: scale(.92); }
+.fab-mic.listening { animation: micPulse 1s infinite; }
+@keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,65,108,.6); } 50% { box-shadow: 0 0 0 14px rgba(255,65,108,0); } }
+
+.voice-backdrop {
+  position: fixed; inset: 0; z-index: 100; background: var(--backdrop);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+}
+.voice-panel {
+  background: var(--modal-bg); border: 1px solid var(--glass-border);
+  border-radius: 24px; padding: 28px 24px 22px; width: 100%; max-width: 340px;
+  text-align: center; box-shadow: var(--shadow-lg); animation: dialogPop .25s;
+}
+.voice-mic { position: relative; width: 100px; height: 100px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; }
+.voice-emoji { font-size: 42px; z-index: 2; }
+.voice-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255,65,108,.5); animation: ringPulse 1.5s infinite; }
+.voice-ring.r2 { animation-delay: .5s; }
+@keyframes ringPulse { 0% { transform: scale(.7); opacity: .85; } 100% { transform: scale(1.5); opacity: 0; } }
+.voice-text { font-size: 15px; font-weight: 700; color: var(--text); min-height: 44px; margin-bottom: 6px; line-height: 1.4; }
+.voice-hint { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+@media (max-width: 639px) { .fab-mic { width: 52px; height: 52px; bottom: calc(96px + env(safe-area-inset-bottom)); } }
+
+/* ================= Result popup (auto OK) ================= */
+.result-pop {
+  position: fixed; left: 50%; top: 72px; transform: translateX(-50%) translateY(-10px);
+  z-index: 120; display: flex; align-items: center; gap: 12px;
+  background: var(--modal-bg); border: 1px solid var(--glass-border);
+  border-radius: 16px; padding: 13px 18px; box-shadow: var(--shadow-lg);
+  max-width: 90vw; opacity: 0; pointer-events: none;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.result-pop.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.result-pop.err { border-color: rgba(239, 68, 68, .55); }
+.result-ic { font-size: 24px; line-height: 1; }
+.result-title { font-weight: 800; font-size: 14px; color: var(--text); }
+.result-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* switch row (profil) */
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; font-size: 13.5px; color: var(--text); text-align: left; }
+.switch-row small { color: var(--muted); font-size: 11px; }
+.switch-row input { width: 20px; height: 20px; accent-color: var(--primary); flex-shrink: 0; }
+
 /* ================= Auto UPPERCASE tampilan input ================= */
 #namaInput, #satuanInput, #keteranganInput, #dialogInput, #profileNameInput, #importText,
 #loginForm input[name="nama"] {

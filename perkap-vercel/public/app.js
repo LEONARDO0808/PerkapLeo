@@ -442,7 +442,7 @@
     const lbl = $('#profileNameLabel'); if (lbl) lbl.textContent = state.displayName;
     const inp = $('#profileNameInput'); if (inp) inp.value = state.displayName;
   }
-  function openProfile() { $('#profileError').textContent = ''; applyIdentity(); $('#profileBackdrop').classList.remove('hidden'); }
+  function openProfile() { $('#profileError').textContent = ''; applyIdentity(); const vt = $('#voiceConfirmToggle'); if (vt) vt.checked = localStorage.getItem('perkap_voice_confirm') === '1'; $('#profileBackdrop').classList.remove('hidden'); }
   function closeProfile() { $('#profileBackdrop').classList.add('hidden'); }
   $('#profileBtn').addEventListener('click', openProfile);
   $('#profileClose').addEventListener('click', closeProfile);
@@ -481,6 +481,11 @@
   $('#profileLogout').addEventListener('click', async () => {
     try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
     closeProfile(); logoutLocal(); toast('Anda telah keluar');
+  });
+  const vct = $('#voiceConfirmToggle');
+  if (vct) vct.addEventListener('change', (e) => {
+    try { localStorage.setItem('perkap_voice_confirm', e.target.checked ? '1' : '0'); } catch (x) {}
+    toast(e.target.checked ? 'Mode konfirmasi suara: AKTIF' : 'Mode auto-simpan suara');
   });
 
   /* ---------- Data + polling ---------- */
@@ -920,6 +925,192 @@
     sel.parentNode.appendChild(btn);
     btn.addEventListener('click', onAddStatus);
   })();
+
+  /* ---------- Input suara (tambah barang via mikrofon) ---------- */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null, voiceActive = false;
+  function showVoiceOverlay(txt) { const b = $('#voiceBackdrop'); if (b) { $('#voiceText').textContent = txt || 'Mendengarkan…'; b.classList.remove('hidden'); } }
+  function hideVoiceOverlay() { const b = $('#voiceBackdrop'); if (b) b.classList.add('hidden'); }
+  function stopVoice() { voiceActive = false; const v = $('#voiceBtn'); if (v) v.classList.remove('listening'); if (recognition) { try { recognition.stop(); } catch (e) {} } }
+  function startVoice() {
+    if (!SR) { toast('Input suara tidak didukung browser ini. Pakai Chrome/Edge di HP.', true); return; }
+    if (voiceActive) { stopVoice(); hideVoiceOverlay(); return; }
+    recognition = new SR();
+    recognition.lang = 'id-ID';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 3;
+    let finalAlts = [];
+    let lastShown = '';
+    recognition.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        if (res.isFinal) {
+          for (let a = 0; a < res.length; a++) { if (res[a] && res[a].transcript) finalAlts.push(res[a].transcript); }
+        } else interim += res[0].transcript;
+      }
+      const shown = (finalAlts.length ? finalAlts[0] : interim).trim();
+      lastShown = shown;
+      showVoiceOverlay(shown ? ('“' + shown + '”') : 'Mendengarkan…');
+    };
+    recognition.onerror = (e) => {
+      voiceActive = false; const v = $('#voiceBtn'); if (v) v.classList.remove('listening'); hideVoiceOverlay();
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('Izin mikrofon ditolak. Aktifkan izin mic di browser.', true);
+      else if (e.error === 'no-speech') showResult('Tidak terdengar', 'Coba bicara lebih dekat/keras.', true);
+      else toast('Gagal mendengar (' + e.error + ').', true);
+    };
+    recognition.onend = () => {
+      voiceActive = false; const v = $('#voiceBtn'); if (v) v.classList.remove('listening'); hideVoiceOverlay();
+      const alts = finalAlts.length ? finalAlts : (lastShown ? [lastShown] : []);
+      if (alts.length) chooseVoiceAndProcess(alts);
+      else showResult('Tidak terdengar', 'Coba bicara lebih dekat/keras.', true);
+    };
+    voiceActive = true; const vb = $('#voiceBtn'); if (vb) vb.classList.add('listening'); showVoiceOverlay('Mendengarkan…');
+    try { recognition.start(); } catch (e) { voiceActive = false; if (vb) vb.classList.remove('listening'); hideVoiceOverlay(); toast('Tidak bisa mulai mikrofon.', true); }
+  }
+  function parseIndoNumber(str) {
+    str = String(str).trim();
+    if (/^\d+$/.test(str)) return parseInt(str, 10);
+    const base = { nol: 0, satu: 1, dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10, sebelas: 11 };
+    const teens = { 'dua belas': 12, 'tiga belas': 13, 'empat belas': 14, 'lima belas': 15, 'enam belas': 16, 'tujuh belas': 17, 'delapan belas': 18, 'sembilan belas': 19 };
+    const joined = str.split(/\s+/).join(' ');
+    if (base[joined] !== undefined) return base[joined];
+    if (teens[joined] !== undefined) return teens[joined];
+    let total = 0;
+    const w = str.split(/\s+/);
+    for (let i = 0; i < w.length; i++) {
+      const word = w[i];
+      if (word === 'seratus') { total += 100; continue; }
+      if (base[word] !== undefined) {
+        const next = w[i + 1];
+        if (next === 'puluh') { total += base[word] * 10; i++; }
+        else if (next === 'ratus') { total += base[word] * 100; i++; }
+        else if (next === 'belas') { total += base[word] + 10; i++; }
+        else total += base[word];
+      }
+    }
+    return total || null;
+  }
+  function extractKeterangan(raw) {
+    let text = ' ' + String(raw).toLowerCase() + ' ';
+    text = text.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const tokens = text.split(' ').filter(Boolean);
+    const statusWords = new Set(['pinjam','dipinjam','meminjam','pinjaman','pakai','dipakai','memakai','pemakaian','kembali','dikembalikan','beli','dibeli','pembelian']);
+    const unitSet = new Set(['pcs','pc','pack','set','unit','buah','batang','box','dus','lusin','rim','kodi','meter','kg','gram','liter','lembar','pasang','biji']);
+    const fillerSet = new Set(['tambah','tambahkan','tambahin','data','barang','input','masukkan','masukan','catat','catatkan','daftar','daftarkan','tolong','mohon','bisa','bantu','coba','ya','yang','untuk','dengan','dan','ada','sebanyak','sejumlah','sedang','sudah','telah','di','ke','dari','buat','sebuah','seorang']);
+    const numWords = new Set(['nol','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan','sepuluh','sebelas','puluh','ratus','belas']);
+    const triggers = [['atas','nama'],['a','n'],['an'],['oleh'],['dengan','keterangan'],['keterangan'],['dengan','nama'],['nama','peminjam'],['peminjam'],['nama']];
+    for (let i = 0; i < tokens.length; i++) {
+      for (const trig of triggers) {
+        let ok = true;
+        for (let k = 0; k < trig.length; k++) { if (tokens[i + k] !== trig[k]) { ok = false; break; } }
+        if (!ok) continue;
+        const start = i;
+        let j = i + trig.length;
+        const captured = [];
+        while (j < tokens.length) {
+          const w = tokens[j];
+          if (/^\d+$/.test(w)) break;
+          if (statusWords.has(w) || unitSet.has(w) || fillerSet.has(w) || numWords.has(w)) break;
+          if (!/^[a-z]+$/.test(w)) break;
+          captured.push(w); j++;
+        }
+        if (captured.length) {
+          const ket = captured.join(' ').toUpperCase();
+          const keep = tokens.slice(0, start).concat(tokens.slice(j));
+          return { text: keep.join(' '), keterangan: ket };
+        }
+      }
+    }
+    return { text: tokens.join(' '), keterangan: '' };
+  }
+  function parseVoice(raw) {
+    const ex = extractKeterangan(raw);
+    const keterangan = ex.keterangan;
+    let text = ' ' + String(ex.text).toLowerCase() + ' ';
+    text = text.replace(/[^a-z0-9\s]/g, ' ');
+    const tokens = text.split(/\s+/).filter(Boolean);
+    const joined = ' ' + tokens.join(' ') + ' ';
+    let status = 'dipakai';
+    if (joined.includes('kembali')) status = 'dikembalikan';
+    else if (joined.includes('pinjam')) status = 'dipinjam';
+    else if (joined.includes('pakai') || joined.includes('beli')) status = 'dipakai';
+    const fillers = new Set(['tambah','tambahkan','tambahin','data','barang','input','masukkan','masukan','catat','catatkan','daftar','daftarkan','tolong','mohon','bisa','bantu','coba','ya','yang','untuk','dengan','dan','ada','sebanyak','sejumlah','sedang','sudah','telah','di','ke','dari','buat','sebuah','seorang','kira','kirakira']);
+    const statusWords = new Set(['pinjam','dipinjam','meminjam','pinjaman','pakai','dipakai','memakai','pemakaian','kembali','dikembalikan','beli','dibeli','pembelian']);
+    const unitSet = new Set(['pcs','pc','pack','set','unit','buah','batang','box','dus','lusin','rim','kodi','meter','kg','gram','liter','lembar','pasang','biji']);
+    const usedIdx = new Set();
+    let jumlah = null;
+    for (let i = 0; i < tokens.length; i++) { if (/^\d+$/.test(tokens[i])) { jumlah = parseInt(tokens[i], 10); usedIdx.add(i); break; } }
+    if (jumlah === null) {
+      const startSet = new Set(['nol','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan','sepuluh','sebelas','seratus']);
+      for (let i = 0; i < tokens.length; i++) {
+        if (startSet.has(tokens[i])) {
+          let j = i; const seq = [];
+          while (j < tokens.length && (startSet.has(tokens[j]) || tokens[j] === 'puluh' || tokens[j] === 'ratus' || tokens[j] === 'belas')) {
+            seq.push(tokens[j]); j++; if (seq.length >= 4) break;
+          }
+          const val = parseIndoNumber(seq.join(' '));
+          if (val) { jumlah = val; for (let k = i; k < j; k++) usedIdx.add(k); break; }
+        }
+      }
+    }
+    let satuan = '';
+    for (let i = 0; i < tokens.length; i++) {
+      if (!usedIdx.has(i) && unitSet.has(tokens[i])) { satuan = (tokens[i] === 'pc' ? 'pcs' : tokens[i]); usedIdx.add(i); break; }
+    }
+    const nameTokens = [];
+    for (let i = 0; i < tokens.length; i++) {
+      if (usedIdx.has(i)) continue;
+      const w = tokens[i];
+      if (fillers.has(w) || statusWords.has(w)) continue;
+      nameTokens.push(w);
+    }
+    const nama = nameTokens.join(' ').trim().toUpperCase();
+    return { nama, jumlah: (jumlah == null ? 1 : jumlah), satuan: (satuan || 'pcs'), status, keterangan: keterangan };
+  }
+  let resultTimer = null;
+  function showResult(title, sub, isErr) {
+    const el = $('#resultPop'); if (!el) return;
+    const ic = $('#resultIc'); if (ic) ic.textContent = isErr ? '⚠️' : '✅';
+    $('#resultTitle').textContent = title;
+    $('#resultSub').textContent = sub || '';
+    el.classList.toggle('err', !!isErr);
+    el.classList.remove('hidden');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(resultTimer);
+    resultTimer = setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.classList.add('hidden'), 250); }, 2000);
+  }
+  function scoreParsed(p) { let s = 0; if (p.nama) s += 2; if (p.jumlah > 1) s += 1; if (p.status !== 'dipakai') s += 1; if (p.keterangan) s += 1; return s; }
+  function chooseVoiceAndProcess(alts) {
+    let best = null, bestScore = -1;
+    for (const t of alts) { const p = parseVoice(t); const sc = scoreParsed(p); if (sc > bestScore) { bestScore = sc; best = p; } }
+    if (!best || !best.nama) { showResult('Suara kurang jelas', 'Coba lagi: “dipinjam 4 meja atas nama bariq”', true); return; }
+    processVoiceItem(best);
+  }
+  async function processVoiceItem(p) {
+    const detail = p.nama + ' • ' + p.jumlah + ' ' + p.satuan + ' • ' + statusMeta(p.status).label + (p.keterangan ? (' • ' + p.keterangan) : '');
+    if (localStorage.getItem('perkap_voice_confirm') === '1') {
+      openModal(null);
+      $('#namaInput').value = p.nama;
+      $('#jumlahInput').value = p.jumlah;
+      $('#satuanInput').value = p.satuan;
+      fillStatusSelect(p.status);
+      $('#keteranganInput').value = p.keterangan || '';
+      toast('Mode konfirmasi — cek lalu Simpan');
+      return;
+    }
+    try {
+      await saveNewItem({ nama: p.nama, jumlah: p.jumlah, satuan: p.satuan, status: p.status, keterangan: p.keterangan || '' });
+      showResult('Data tersimpan', detail);
+    } catch (e) {
+      showResult('Gagal menyimpan', 'Coba lagi.', true);
+    }
+  }
+  $('#voiceBtn').addEventListener('click', startVoice);
+  $('#voiceCancel').addEventListener('click', () => { stopVoice(); hideVoiceOverlay(); });
+  $('#voiceBackdrop').addEventListener('click', (e) => { if (e.target.id === 'voiceBackdrop') { stopVoice(); hideVoiceOverlay(); } });
 
   /* ---------- Boot ---------- */
   async function boot() {
