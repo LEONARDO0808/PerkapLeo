@@ -33,7 +33,14 @@
   async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
-    const res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+    let res;
+    try {
+      res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+    } catch (e) {
+      const err = new Error('Tidak ada koneksi internet');
+      err.offline = true;
+      throw err;
+    }
     let data = null;
     try { data = await res.json(); } catch (e) { data = {}; }
     if (!res.ok) {
@@ -41,6 +48,131 @@
       throw new Error((data && data.error) || 'Terjadi kesalahan');
     }
     return data;
+  }
+
+  /* ================= Offline-first: cache + antrean sinkron ================= */
+  const CACHE_ITEMS = 'perkap_cache_items';
+  const CACHE_STATUSES = 'perkap_cache_statuses';
+  const CACHE_USER = 'perkap_cache_user';
+  const QUEUE_KEY = 'perkap_queue';
+
+  function saveCache() {
+    try {
+      localStorage.setItem(CACHE_ITEMS, JSON.stringify(state.items));
+      localStorage.setItem(CACHE_STATUSES, JSON.stringify(state.statuses));
+      if (state.user) localStorage.setItem(CACHE_USER, JSON.stringify(state.user));
+    } catch (e) {}
+  }
+  function loadCacheIntoState() {
+    try {
+      const ci = localStorage.getItem(CACHE_ITEMS);
+      if (ci) { const arr = JSON.parse(ci); if (Array.isArray(arr)) state.items = arr; }
+      const cs = localStorage.getItem(CACHE_STATUSES);
+      if (cs) { const arr = JSON.parse(cs); if (Array.isArray(arr) && arr.length) state.statuses = arr; }
+      if (!state.user) {
+        const cu = localStorage.getItem(CACHE_USER);
+        if (cu) { try { state.user = JSON.parse(cu); } catch (e) {} }
+      }
+    } catch (e) {}
+  }
+  function loadQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { return []; } }
+  function saveQueue(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (e) {} }
+  function tmpId() { return 'tmp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function isTempId(id) { return String(id).startsWith('tmp_'); }
+
+  function updateOnlineUI() {
+    state.online = navigator.onLine;
+    const bar = $('#offlineBar');
+    if (bar) bar.classList.toggle('hidden', state.online);
+    const dot = $('#liveDot');
+    if (dot) {
+      dot.classList.toggle('on', state.online);
+      dot.classList.toggle('offline', !state.online);
+      dot.title = state.online ? 'Online' : 'Offline';
+    }
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing || !state.token || !navigator.onLine) return;
+    const q = loadQueue();
+    if (!q.length) return;
+    flushing = true;
+    try {
+      while (q.length) {
+        const op = q[0];
+        try {
+          if (op.op === 'create') {
+            const r = await api('/api/items', { method: 'POST', body: JSON.stringify(op.payload) });
+            const real = r.item;
+            const idx = state.items.findIndex((x) => x.id === op.tempId);
+            if (idx >= 0) state.items[idx] = real;
+            for (const o of q) { if (o.id === op.tempId) o.id = real.id; }
+            q.shift();
+          } else if (op.op === 'update') {
+            if (isTempId(op.id)) { q.shift(); }
+            else { await api('/api/items/' + op.id, { method: 'PUT', body: JSON.stringify(op.patch) }); q.shift(); }
+          } else if (op.op === 'delete') {
+            if (isTempId(op.id)) { q.shift(); }
+            else { await api('/api/items/' + op.id, { method: 'DELETE' }); q.shift(); }
+          } else { q.shift(); }
+        } catch (err) {
+          if (err && err.offline) break;   // jaringan putus -> hentikan, simpan sisa antrean
+          q.shift();                        // error logis (403/404) -> buang
+        }
+        saveQueue(q);
+        lastSnapshot = JSON.stringify(state.items);
+        saveCache();
+        render();
+      }
+    } finally {
+      saveQueue(q);
+      flushing = false;
+      saveCache();
+      updateOnlineUI();
+    }
+  }
+
+  async function saveNewItem(payload) {
+    const optimistic = {
+      id: tmpId(), nama: payload.nama, jumlah: payload.jumlah,
+      satuan: payload.satuan || '', status: payload.status || 'dipakai',
+      keterangan: payload.keterangan || '',
+      createdBy: state.user ? state.user.username : '',
+      createdById: state.user ? state.user.id : null,
+      createdAt: Date.now(), updatedAt: Date.now(), _pending: true,
+    };
+    state.items.unshift(optimistic);
+    const q = loadQueue(); q.push({ op: 'create', tempId: optimistic.id, payload }); saveQueue(q);
+    lastSnapshot = JSON.stringify(state.items);
+    saveCache(); render();
+    await flushQueue();
+    return optimistic;
+  }
+  async function saveUpdateItem(id, patch) {
+    const it = state.items.find((x) => x.id === id);
+    if (it) { Object.assign(it, patch); it.updatedAt = Date.now(); }
+    if (isTempId(id)) {
+      const q = loadQueue(); const c = q.find((o) => o.op === 'create' && o.tempId === id);
+      if (c) Object.assign(c.payload, patch); saveQueue(q);
+    } else {
+      const q = loadQueue(); q.push({ op: 'update', id, patch }); saveQueue(q);
+    }
+    lastSnapshot = JSON.stringify(state.items);
+    saveCache(); render();
+    await flushQueue();
+  }
+  async function deleteItemById(id) {
+    state.items = state.items.filter((x) => x.id !== id);
+    if (isTempId(id)) {
+      const q = loadQueue().filter((o) => !(o.op === 'create' && o.tempId === id) && o.id !== id);
+      saveQueue(q);
+    } else {
+      const q = loadQueue(); q.push({ op: 'delete', id }); saveQueue(q);
+    }
+    lastSnapshot = JSON.stringify(state.items);
+    saveCache(); render();
+    await flushQueue();
   }
 
   /* ---------- Toast ---------- */
@@ -150,6 +282,7 @@
           lastStatusSnapshot = snap;
           state.statuses = r.statuses;
           renderTabs();
+          saveCache();
         }
       }
     } catch (e) { /* tetap pakai default */ }
@@ -246,6 +379,7 @@
     state.token = token;
     state.user = user;
     localStorage.setItem(TOKEN_KEY, token);
+    try { localStorage.setItem(CACHE_USER, JSON.stringify(user)); } catch (e) {}
     applyIdentity();
     showApp();
     showOverlay('Memuat data…');
@@ -265,6 +399,7 @@
     state.statuses = DEFAULT_STATUSES.slice();
     lastSnapshot = null;
     localStorage.removeItem(TOKEN_KEY);
+    try { localStorage.removeItem(CACHE_USER); saveQueue([]); } catch (e) {}
     stopPolling();
     showAuth();
   }
@@ -312,7 +447,6 @@
   $('#profileBtn').addEventListener('click', openProfile);
   $('#profileClose').addEventListener('click', closeProfile);
   $('#profileBackdrop').addEventListener('click', (e) => { if (e.target.id === 'profileBackdrop') closeProfile(); });
-  $('#changePhotoBtn').addEventListener('click', () => $('#avatarFile').click());
   $('#profileAvatarBtn').addEventListener('click', () => $('#avatarFile').click());
   $('#avatarFile').addEventListener('change', (e) => {
     const f = e.target.files && e.target.files[0];
@@ -351,19 +485,24 @@
 
   /* ---------- Data + polling ---------- */
   async function loadItems() {
+    if (!navigator.onLine) { updateOnlineUI(); return; }
     try {
+      if (loadQueue().length) await flushQueue();
+      if (loadQueue().length) { updateOnlineUI(); return; }
       const r = await api('/api/items');
       const snapshot = JSON.stringify(r.items);
-      $('#liveDot').classList.add('on');
-      if (snapshot === lastSnapshot) return; // tidak ada perubahan -> jangan gambar ulang
+      updateOnlineUI();
+      if (snapshot === lastSnapshot) return;
       const ae = document.activeElement;
       if (ae && ae.tagName === 'SELECT' && ae.closest('.item-list')) {
-        state.items = r.items; lastSnapshot = snapshot; return;
+        state.items = r.items; lastSnapshot = snapshot; saveCache(); return;
       }
       lastSnapshot = snapshot;
       state.items = r.items;
+      saveCache();
       render();
     } catch (err) {
+      if (err && err.offline) { updateOnlineUI(); return; }
       $('#liveDot').classList.remove('on');
       toast(err.message, true);
     }
@@ -451,6 +590,7 @@
     const subParts = [];
     if (it.keterangan) subParts.push('📝 ' + esc(it.keterangan));
     if (it.createdBy) subParts.push('oleh ' + esc(it.createdBy) + (mine ? ' (kamu)' : ''));
+    if (it._pending) subParts.push('⏳ menunggu sinkron');
     const sub = subParts.join(' · ');
     const sideHtml = mine
       ? `<select class="status-select s-${it.status}" data-action="status">${options}</select>
@@ -533,13 +673,9 @@
     const id = card.dataset.id;
     const status = sel.value;
     try {
-      await api('/api/items/' + id, { method: 'PUT', body: JSON.stringify({ status }) });
-      const it = state.items.find((x) => x.id === id);
-      if (it) it.status = status;
-      lastSnapshot = JSON.stringify(state.items);
-      render();
+      await saveUpdateItem(id, { status });
       toast(isDoneStatus({ status }) ? 'Ditandai selesai ✓' : 'Status diperbarui: ' + statusMeta(status).label);
-    } catch (err) { toast(err.message, true); loadItems(); }
+    } catch (err) { toast(err.message, true); }
   });
 
   $('#itemList').addEventListener('click', async (e) => {
@@ -562,13 +698,8 @@
       });
       if (!okDel) return;
       showOverlay('Menghapus…');
-      try {
-        await api('/api/items/' + id, { method: 'DELETE' });
-        state.items = state.items.filter((x) => x.id !== id);
-        lastSnapshot = JSON.stringify(state.items);
-        render();
-        toast('Barang dihapus');
-      } catch (err) { toast(err.message, true); }
+      try { await deleteItemById(id); toast('Barang dihapus'); }
+      catch (err) { toast(err.message, true); }
       finally { hideOverlay(); }
     }
   });
@@ -609,6 +740,54 @@
     for (const s of state.statuses) state.collapsed[s.key] = true;
     for (const it of state.items) state.collapsed[it.status] = true;
     render();
+  });
+
+  /* ---------- Detail popup saat kartu diketuk ---------- */
+  function fmtDate(ms) {
+    try { return new Date(ms).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    catch (e) { return '-'; }
+  }
+  function closeDetail() { const b = $('#detailBackdrop'); if (b) b.classList.add('hidden'); }
+  function openDetail(it) {
+    const meta = statusMeta(it.status);
+    const done = isDoneStatus(it);
+    const mine = isMine(it);
+    const rows = [];
+    if (it.keterangan) rows.push(`<div class="detail-row"><span class="k">Keterangan</span><span class="v">${esc(it.keterangan)}</span></div>`);
+    rows.push(`<div class="detail-row"><span class="k">Diinput oleh</span><span class="v">${esc(it.createdBy || '-')}${mine ? ' (kamu)' : ''}</span></div>`);
+    if (it.createdAt) rows.push(`<div class="detail-row"><span class="k">Dibuat</span><span class="v">${fmtDate(it.createdAt)}</span></div>`);
+    if (it.updatedAt) rows.push(`<div class="detail-row"><span class="k">Diperbarui</span><span class="v">${fmtDate(it.updatedAt)}</span></div>`);
+    $('#detailBody').innerHTML = `
+      <div class="detail-head"><span class="status-pill p-${it.status}">${esc(meta.label)}</span></div>
+      <h3 class="detail-title ${done ? 'done-name' : ''}">${esc(it.nama)}</h3>
+      <div class="detail-qty"><b>${esc(it.jumlah)}</b> ${esc(it.satuan || 'unit')}</div>
+      <div class="detail-rows">${rows.join('')}</div>
+      ${mine
+        ? `<div class="detail-actions"><button type="button" class="btn btn-ghost" id="detailEdit">✏️ Ubah</button><button type="button" class="btn btn-danger" id="detailDelete">🗑 Hapus</button></div>`
+        : `<div class="detail-note">Barang ini diinput orang lain — hanya bisa dilihat.</div>`}
+    `;
+    $('#detailBackdrop').classList.remove('hidden');
+    const ed = $('#detailEdit');
+    if (ed) ed.onclick = () => { closeDetail(); openModal(it); };
+    const dl = $('#detailDelete');
+    if (dl) dl.onclick = async () => {
+      const ok = await confirmDialog({ title: 'Hapus Barang', message: `Hapus "${it.nama}"? Tindakan ini tidak bisa dibatalkan.`, okText: 'Hapus', danger: true });
+      if (!ok) return;
+      closeDetail();
+      showOverlay('Menghapus…');
+      try { await deleteItemById(it.id); toast('Barang dihapus'); }
+      catch (err) { toast(err.message, true); }
+      finally { hideOverlay(); }
+    };
+  }
+  $('#detailClose').addEventListener('click', closeDetail);
+  $('#detailBackdrop').addEventListener('click', (e) => { if (e.target.id === 'detailBackdrop') closeDetail(); });
+  $('#itemList').addEventListener('click', (e) => {
+    const card = e.target.closest('.item-card');
+    if (!card) return;
+    if (e.target.closest('[data-action]') || e.target.closest('.status-select')) return;
+    const item = state.items.find((x) => x.id === card.dataset.id);
+    if (item) openDetail(item);
   });
   let searchTimer;
   $('#searchInput').addEventListener('input', (e) => {
@@ -654,10 +833,10 @@
     setBtnLoading(saveBtn, true, 'Menyimpan…');
     try {
       if (id) {
-        await api('/api/items/' + id, { method: 'PUT', body: JSON.stringify(payload) });
+        await saveUpdateItem(id, payload);
         toast('Barang diperbarui');
       } else {
-        await api('/api/items', { method: 'POST', body: JSON.stringify(payload) });
+        await saveNewItem(payload);
         toast('Barang ditambahkan');
       }
       closeModal();
@@ -716,7 +895,7 @@
     try {
       for (let i = 0; i < rows.length; i++) {
         showOverlay('Mengimpor ' + (i + 1) + '/' + rows.length + '…');
-        try { await api('/api/items', { method: 'POST', body: JSON.stringify(rows[i]) }); ok++; }
+        try { await saveNewItem(rows[i]); ok++; }
         catch (e) { fail++; }
       }
     } finally {
@@ -744,10 +923,18 @@
 
   /* ---------- Boot ---------- */
   async function boot() {
+    updateOnlineUI();
     if (!state.token) { showAuth(); return; }
+    loadCacheIntoState();
+    if (state.user) { applyIdentity(); showApp(); renderTabs(); render(); }
+    if (!navigator.onLine) {
+      if (state.user) { startPolling(); updateOnlineUI(); } else { showAuth(); }
+      return;
+    }
     try {
       const r = await api('/api/me');
       state.user = r.user;
+      try { localStorage.setItem(CACHE_USER, JSON.stringify(r.user)); } catch (e) {}
       applyIdentity();
       showApp();
       showOverlay('Memuat data…');
@@ -759,9 +946,25 @@
       }
       startPolling();
     } catch (e) {
-      showAuth();
+      if (e && e.offline) {
+        if (state.user) { applyIdentity(); showApp(); renderTabs(); render(); startPolling(); updateOnlineUI(); }
+        else { showAuth(); }
+      } else {
+        showAuth();
+      }
     }
   }
+
+  window.addEventListener('online', () => {
+    updateOnlineUI();
+    toast('Online kembali — menyinkronkan…');
+    flushQueue().then(() => loadItems());
+  });
+  window.addEventListener('offline', () => {
+    updateOnlineUI();
+    toast('Mode offline — data tersimpan di HP');
+  });
+
   boot();
   startClock();
 

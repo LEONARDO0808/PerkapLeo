@@ -20,7 +20,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261121g" />
+  <link rel="stylesheet" href="/styles.css?v=20261121k" />
 </head>
 <body>
 
@@ -65,6 +65,8 @@
       </button>
     </div>
   </header>
+
+  <div id="offlineBar" class="offline-bar hidden">⚠️ Mode offline — perubahan tersimpan di HP &amp; akan sinkron saat internet kembali.</div>
 
   <main class="content">
     <!-- statistik -->
@@ -212,10 +214,13 @@
 <div class="dialog-backdrop hidden" id="profileBackdrop">
   <div class="dialog profile-dialog" role="dialog" aria-modal="true">
     <div class="profile-top">
-      <button class="avatar-btn big" id="profileAvatarBtn" type="button" title="Ganti foto">
-        <img id="profileAvatarImg" class="avatar-img hidden" alt="" />
-        <span id="profileAvatarIcon" class="avatar-icon">👤</span>
-      </button>
+      <div class="profile-avatar-wrap">
+        <button class="avatar-btn big" id="profileAvatarBtn" type="button" title="Ganti foto">
+          <img id="profileAvatarImg" class="avatar-img hidden" alt="" />
+          <span id="profileAvatarIcon" class="avatar-icon">👤</span>
+        </button>
+        <span class="avatar-plus" aria-hidden="true">＋</span>
+      </div>
       <div class="profile-name" id="profileNameLabel">NAMA</div>
     </div>
     <label class="field">
@@ -223,7 +228,6 @@
       <input type="text" id="profileNameInput" maxlength="30" placeholder="Nama kamu" />
     </label>
     <input type="file" id="avatarFile" accept="image/*" class="hidden" />
-    <button type="button" class="btn btn-ghost btn-block" id="changePhotoBtn" style="margin-top:10px;">📷 Ganti Foto</button>
     <div class="form-error" id="profileError"></div>
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" id="profileClose">Tutup</button>
@@ -233,9 +237,17 @@
   </div>
 </div>
 
+<!-- detail modal -->
+<div class="dialog-backdrop hidden" id="detailBackdrop">
+  <div class="dialog detail-dialog" role="dialog" aria-modal="true">
+    <button class="icon-btn detail-close" id="detailClose" type="button">✕</button>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120j"></script>
+<script src="/app.js?v=20261120m"></script>
 </body>
 </html>

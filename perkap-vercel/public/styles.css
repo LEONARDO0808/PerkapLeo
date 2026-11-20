@@ -618,6 +618,15 @@ input, select, textarea { font-family: inherit; }
 .avatar-btn.big .avatar-icon { font-size: 38px; }
 .profile-dialog { text-align: center; }
 .profile-top { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px; }
+.profile-avatar-wrap { position: relative; display: inline-flex; }
+.avatar-plus {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--grad); color: #fff; font-size: 18px; font-weight: 800; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 18px rgba(109, 92, 255, .55); border: 2px solid var(--modal-bg);
+  pointer-events: none;
+}
 .profile-name { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; }
 .profile-dialog .field { text-align: left; }
 
@@ -629,3 +638,39 @@ input, select, textarea { font-family: inherit; }
 }
 .item-card.done .item-name { color: #10b981; -webkit-text-fill-color: #10b981; }
 .item-card.done .item-qty { color: #10b981; background: rgba(16, 185, 129, 0.15); }
+
+/* ================= Dropdown (select) agar opsi selalu terbaca ================= */
+select { color-scheme: light; }
+select option,
+.field select option,
+.status-select option,
+.mini-select option,
+#statusInput option {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+/* ================= Detail popup (kartu diketuk) ================= */
+.detail-dialog { text-align: left; position: relative; padding-top: 28px; }
+.detail-close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; }
+.detail-head { margin-bottom: 8px; }
+.detail-title { margin: 2px 0 6px; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+.detail-title.done-name { color: #10b981; text-decoration: line-through; }
+.detail-qty { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+.detail-qty b { font-size: 28px; font-weight: 900; color: var(--primary); letter-spacing: -0.02em; }
+.detail-rows { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; }
+.detail-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.detail-row:last-child { border-bottom: 0; }
+.detail-row .k { color: var(--muted); flex-shrink: 0; }
+.detail-row .v { color: var(--text); text-align: right; font-weight: 600; }
+.detail-actions { display: flex; gap: 10px; }
+.detail-actions .btn { flex: 1; }
+.detail-note { font-size: 12.5px; color: var(--muted); text-align: center; }
+
+/* ================= Offline indicator ================= */
+.offline-bar {
+  margin: 10px 12px 0; padding: 9px 12px; border-radius: 12px;
+  background: rgba(245, 158, 11, .16); border: 1px solid rgba(245, 158, 11, .5);
+  color: var(--dipakai); font-size: 12.5px; font-weight: 700; text-align: center;
+}
+.live-dot.offline { background: var(--dipakai); }
