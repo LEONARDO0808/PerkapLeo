@@ -457,7 +457,7 @@
     const lbl = $('#profileNameLabel'); if (lbl) lbl.textContent = state.displayName;
     const inp = $('#profileNameInput'); if (inp) inp.value = state.displayName;
   }
-  function openProfile() { $('#profileError').textContent = ''; applyIdentity(); const vt = $('#voiceConfirmToggle'); if (vt) vt.checked = localStorage.getItem('perkap_voice_confirm') === '1'; $('#profileBackdrop').classList.remove('hidden'); }
+  function openProfile() { $('#profileError').textContent = ''; applyIdentity(); const vt = $('#voiceConfirmToggle'); if (vt) vt.checked = localStorage.getItem('perkap_voice_confirm') === '1'; const dp = $('#dataPanel'); if (dp) dp.classList.add('hidden'); const dc = $('#dataChev'); if (dc) dc.textContent = '▸'; $('#profileBackdrop').classList.remove('hidden'); }
   function closeProfile() { $('#profileBackdrop').classList.add('hidden'); }
   $('#profileBtn').addEventListener('click', openProfile);
   $('#profileClose').addEventListener('click', closeProfile);
@@ -501,6 +501,13 @@
   if (vct) vct.addEventListener('change', (e) => {
     try { localStorage.setItem('perkap_voice_confirm', e.target.checked ? '1' : '0'); } catch (x) {}
     toast(e.target.checked ? 'Mode konfirmasi suara: AKTIF' : 'Mode auto-simpan suara');
+  });
+  const dataToggleEl = $('#dataToggle');
+  if (dataToggleEl) dataToggleEl.addEventListener('click', () => {
+    const p = $('#dataPanel'); const c = $('#dataChev');
+    if (!p) return;
+    p.classList.toggle('hidden');
+    if (c) c.textContent = p.classList.contains('hidden') ? '▸' : '▾';
   });
 
   /* ---------- Fitur "All": export & hapus semua ---------- */

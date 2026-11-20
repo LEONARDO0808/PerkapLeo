@@ -757,6 +757,21 @@ select option,
 @keyframes splashLoad { 0% { margin-left: -42%; } 100% { margin-left: 102%; } }
 @keyframes splashAuto { to { opacity: 0; visibility: hidden; } }
 
+/* ================= Profil ringkas (baris setting) ================= */
+.settings-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 4px; background: none; border: 0; border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left;
+}
+.settings-row:hover { background: var(--surface-2); }
+.settings-row .si { font-size: 18px; width: 22px; text-align: center; }
+.settings-row .sl { flex: 1; }
+.settings-row .sc { color: var(--muted); font-size: 16px; }
+.settings-row.danger { color: var(--danger); }
+.settings-row.sub { padding-left: 14px; }
+.data-panel { margin-bottom: 4px; }
+.data-panel.hidden { display: none; }
+
 /* ================= Auto UPPERCASE tampilan input ================= */
 #namaInput, #satuanInput, #keteranganInput, #dialogInput, #profileNameInput, #importText,
 #loginForm input[name="nama"] {

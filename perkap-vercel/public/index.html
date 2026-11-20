@@ -11,6 +11,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="PERKAP KITA" />
   <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+  <style>
+    /* Critical: cegah layar putih saat awal buka */
+    html, body { background: #0b0f22; margin: 0; }
+    #splash {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+      background: radial-gradient(circle at 50% 40%, #241b52 0%, #060814 70%);
+    }
+    #splash .splash-logo { width: 112px; height: 112px; border-radius: 28px; background: #fff; padding: 6px; }
+    #splash .splash-name { color: #cfc8ff; font-weight: 800; font-size: 20px; letter-spacing: .04em; }
+    #splash .splash-bar { width: 128px; height: 4px; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; }
+    #splash .splash-bar span { display: block; height: 100%; width: 40%; border-radius: 99px; background: linear-gradient(135deg, #8b7bff, #c084fc); }
+  </style>
   <script>
     (function () {
       try {
@@ -20,7 +33,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261121v" />
+  <link rel="stylesheet" href="/styles.css?v=20261121x" />
 </head>
 <body>
 
@@ -243,12 +256,14 @@
       <span>Konfirmasi suara sebelum simpan<br /><small>(aktifkan saat tempat berisik/rame)</small></span>
       <input type="checkbox" id="voiceConfirmToggle" />
     </label>
-    <div class="admin-block">
-      <div class="admin-title">Kelola Data</div>
-      <button type="button" class="btn btn-primary btn-block" id="installBtn">📲 Instal Aplikasi di HP</button>
-      <button type="button" class="btn btn-ghost btn-block" id="exportJsonBtn">⬇️ Simpan Semua (Export JSON)</button>
-      <button type="button" class="btn btn-ghost btn-block" id="exportCsvBtn">📄 Export ke CSV (Excel)</button>
-      <button type="button" class="btn btn-danger btn-block" id="deleteAllBtn">🗑 Hapus Semua Barang</button>
+    <button type="button" class="settings-row" id="dataToggle">
+      <span class="si">🗂️</span><span class="sl">Kelola Data</span><span class="sc" id="dataChev">▸</span>
+    </button>
+    <div class="data-panel hidden" id="dataPanel">
+      <button type="button" class="settings-row sub" id="installBtn"><span class="si">📲</span><span class="sl">Instal Aplikasi di HP</span><span class="sc">›</span></button>
+      <button type="button" class="settings-row sub" id="exportJsonBtn"><span class="si">⬇️</span><span class="sl">Simpan Semua (JSON)</span><span class="sc">›</span></button>
+      <button type="button" class="settings-row sub" id="exportCsvBtn"><span class="si">📄</span><span class="sl">Export CSV (Excel)</span><span class="sc">›</span></button>
+      <button type="button" class="settings-row sub danger" id="deleteAllBtn"><span class="si">🗑</span><span class="sl">Hapus Semua Barang</span><span class="sc">›</span></button>
     </div>
     <input type="file" id="avatarFile" accept="image/*" class="hidden" />
     <div class="form-error" id="profileError"></div>
@@ -256,7 +271,7 @@
       <button type="button" class="btn btn-ghost" id="profileClose">Tutup</button>
       <button type="button" class="btn btn-primary" id="profileSave">Simpan</button>
     </div>
-    <button type="button" class="btn btn-danger btn-block" id="profileLogout" style="margin-top:12px;">Keluar (Logout)</button>
+    <button type="button" class="settings-row danger" id="profileLogout"><span class="si">🚪</span><span class="sl">Keluar (Logout)</span><span class="sc">›</span></button>
   </div>
 </div>
 
@@ -290,6 +305,6 @@
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120v"></script>
+<script src="/app.js?v=20261120x"></script>
 </body>
 </html>
