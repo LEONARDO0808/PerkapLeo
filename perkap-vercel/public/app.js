@@ -955,6 +955,19 @@
     }
   }
 
+  /* ---------- Auto UPPERCASE untuk semua input teks ---------- */
+  const UPPER_SELECTORS = '#namaInput, #satuanInput, #keteranganInput, #dialogInput, #profileNameInput, #importText, #loginForm input[name="nama"]';
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!el || !el.matches || !el.matches(UPPER_SELECTORS)) return;
+    const s = el.selectionStart, en = el.selectionEnd;
+    const up = el.value.toUpperCase();
+    if (up !== el.value) {
+      el.value = up;
+      try { el.setSelectionRange(s, en); } catch (x) {}
+    }
+  });
+
   window.addEventListener('online', () => {
     updateOnlineUI();
     toast('Online kembali — menyinkronkan…');
