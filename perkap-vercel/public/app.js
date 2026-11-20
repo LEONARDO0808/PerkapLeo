@@ -510,6 +510,47 @@
     if (c) c.textContent = p.classList.contains('hidden') ? '▸' : '▾';
   });
 
+  /* ---------- Kelola Status (hapus) ---------- */
+  function openStatusManage() { renderStatusList(); $('#statusBackdrop').classList.remove('hidden'); }
+  function closeStatusManage() { $('#statusBackdrop').classList.add('hidden'); }
+  function renderStatusList() {
+    const list = $('#statusList'); if (!list) return;
+    const total = state.statuses.length;
+    list.innerHTML = state.statuses.map((s) => `
+      <div class="status-item">
+        <span class="dot" style="background:${statusDotColor(s.key)}"></span>
+        <span class="nm">${esc(s.label)}</span>
+        ${s.isDone ? '<span class="tag">SELESAI</span>' : ''}
+        <button type="button" class="delst" data-del="${esc(s.key)}" ${(total <= 1 || !s.id) ? 'disabled' : ''} title="Hapus status">🗑</button>
+      </div>`).join('');
+  }
+  const smb = $('#statusManageBtn');
+  if (smb) smb.addEventListener('click', openStatusManage);
+  const scl = $('#statusClose');
+  if (scl) scl.addEventListener('click', closeStatusManage);
+  const sbd = $('#statusBackdrop');
+  if (sbd) sbd.addEventListener('click', (e) => { if (e.target.id === 'statusBackdrop') closeStatusManage(); });
+  const slist = $('#statusList');
+  if (slist) slist.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-del]');
+    if (!btn || btn.disabled) return;
+    const key = btn.dataset.del;
+    const st = state.statuses.find((s) => s.key === key);
+    if (!st) return;
+    if (!st.id) { toast('Status belum termuat, coba lagi', true); return; }
+    const ok = await confirmDialog({ title: 'Hapus Status', message: 'Hapus status "' + st.label + '"? Barang yang memakai status ini akan dipindah ke status lain.', okText: 'Hapus', danger: true });
+    if (!ok) return;
+    showOverlay('Menghapus status…');
+    try {
+      await api('/api/statuses?id=' + encodeURIComponent(st.id), { method: 'DELETE' });
+      await loadStatuses();
+      renderStatusList();
+      await loadItems();
+      toast('Status dihapus');
+    } catch (err) { toast(err.message || 'Gagal menghapus status', true); }
+    finally { hideOverlay(); }
+  });
+
   /* ---------- Fitur "All": export & hapus semua ---------- */
   function downloadFile(name, content, mime) {
     try {

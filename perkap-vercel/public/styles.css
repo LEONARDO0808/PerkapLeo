@@ -772,6 +772,18 @@ select option,
 .data-panel { margin-bottom: 4px; }
 .data-panel.hidden { display: none; }
 
+/* Kelola Status list */
+.status-list { display: flex; flex-direction: column; gap: 7px; margin: 6px 0 16px; max-height: 50vh; overflow: auto; }
+.status-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2);
+}
+.status-item .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.status-item .nm { flex: 1; font-weight: 700; font-size: 14px; text-transform: uppercase; color: var(--text); }
+.status-item .tag { font-size: 10px; font-weight: 800; color: var(--dikembalikan); border: 1px solid var(--dikembalikan-bd); background: var(--dikembalikan-bg); padding: 1px 7px; border-radius: 6px; }
+.status-item .delst { border: 0; background: none; color: var(--danger); font-size: 16px; cursor: pointer; padding: 4px; }
+.status-item .delst:disabled { opacity: .3; cursor: not-allowed; }
+
 /* ================= Auto UPPERCASE tampilan input ================= */
 #namaInput, #satuanInput, #keteranganInput, #dialogInput, #profileNameInput, #importText,
 #loginForm input[name="nama"] {

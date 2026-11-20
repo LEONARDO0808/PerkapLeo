@@ -33,7 +33,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261121x" />
+  <link rel="stylesheet" href="/styles.css?v=20261121y" />
 </head>
 <body>
 
@@ -263,6 +263,7 @@
       <button type="button" class="settings-row sub" id="installBtn"><span class="si">📲</span><span class="sl">Instal Aplikasi di HP</span><span class="sc">›</span></button>
       <button type="button" class="settings-row sub" id="exportJsonBtn"><span class="si">⬇️</span><span class="sl">Simpan Semua (JSON)</span><span class="sc">›</span></button>
       <button type="button" class="settings-row sub" id="exportCsvBtn"><span class="si">📄</span><span class="sl">Export CSV (Excel)</span><span class="sc">›</span></button>
+      <button type="button" class="settings-row sub" id="statusManageBtn"><span class="si">🏷️</span><span class="sl">Kelola Status</span><span class="sc">›</span></button>
       <button type="button" class="settings-row sub danger" id="deleteAllBtn"><span class="si">🗑</span><span class="sl">Hapus Semua Barang</span><span class="sc">›</span></button>
     </div>
     <input type="file" id="avatarFile" accept="image/*" class="hidden" />
@@ -272,6 +273,18 @@
       <button type="button" class="btn btn-primary" id="profileSave">Simpan</button>
     </div>
     <button type="button" class="settings-row danger" id="profileLogout"><span class="si">🚪</span><span class="sl">Keluar (Logout)</span><span class="sc">›</span></button>
+  </div>
+</div>
+
+<!-- status manage modal -->
+<div class="dialog-backdrop hidden" id="statusBackdrop">
+  <div class="dialog" role="dialog" aria-modal="true">
+    <h3 class="dialog-title">Kelola Status</h3>
+    <p class="dialog-msg">Ketuk 🗑 untuk menghapus status. Barang yang memakai status itu akan dipindah ke status lain.</p>
+    <div id="statusList" class="status-list"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="statusClose">Tutup</button>
+    </div>
   </div>
 </div>
 
@@ -305,6 +318,6 @@
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120x"></script>
+<script src="/app.js?v=20261120y"></script>
 </body>
 </html>

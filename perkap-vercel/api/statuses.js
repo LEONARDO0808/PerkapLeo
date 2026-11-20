@@ -49,6 +49,21 @@ export default async function handler(req, res) {
       });
     }
 
+    if (req.method === 'DELETE') {
+      const id = req.query.id ? Number(req.query.id) : null;
+      if (!id) return res.status(400).json({ error: 'ID status tidak valid' });
+      const rows = await sql`SELECT id, key, label FROM statuses WHERE id = ${id} LIMIT 1`;
+      const st = rows[0];
+      if (!st) return res.status(404).json({ error: 'Status tidak ditemukan' });
+      const cnt = await sql`SELECT COUNT(*)::int AS n FROM statuses`;
+      if (((cnt[0] && cnt[0].n) || 0) <= 1) return res.status(400).json({ error: 'Minimal harus ada 1 status.' });
+      const fb = await sql`SELECT key FROM statuses WHERE id <> ${id} ORDER BY sort, id LIMIT 1`;
+      const fbKey = fb[0] ? fb[0].key : 'dipakai';
+      await sql`UPDATE items SET status = ${fbKey} WHERE status = ${st.key}`;
+      await sql`DELETE FROM statuses WHERE id = ${id}`;
+      return res.status(200).json({ ok: true, movedTo: fbKey });
+    }
+
     return res.status(405).json({ error: 'Metode tidak diizinkan' });
   } catch (e) {
     console.error(e);
