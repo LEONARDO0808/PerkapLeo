@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
-  <title>PERKAP ALFAMART · Inventaris Barang Acara</title>
+  <title>PERKAP KITA · Inventaris Barang Acara</title>
   <meta name="theme-color" content="#4f46e5" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="PERKAP ALFAMART" />
+  <meta name="apple-mobile-web-app-title" content="PERKAP KITA" />
   <link rel="icon" type="image/png" href="/icons/icon-192.png" />
   <script>
     (function () {
@@ -20,7 +20,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261121a" />
+  <link rel="stylesheet" href="/styles.css?v=20261121g" />
 </head>
 <body>
 
@@ -29,8 +29,8 @@
   <button class="icon-btn theme-btn theme-fab" title="Mode gelap/terang" type="button">🌙</button>
   <div class="auth-card">
     <div class="brand brand-auth">
-      <img class="brand-img-lg" src="/icons/logo.png" alt="PERKAP ALFAMART" />
-      <h1>PERKAP ALFAMART</h1>
+      <img class="brand-img-lg" src="/icons/logo.png" alt="PERKAP KITA" />
+      <h1>PERKAP KITA</h1>
       <p class="brand-sub">Inventaris Barang Acara</p>
     </div>
 
@@ -50,17 +50,18 @@
 <section id="appScreen" class="app-screen hidden">
   <header class="topbar">
     <div class="topbar-left">
-      <img class="brand-img-sm" src="/icons/logo.png" alt="PERKAP ALFAMART" />
+      <img class="brand-img-sm" src="/icons/logo.png" alt="PERKAP KITA" />
       <div class="topbar-title">
-        <strong>PERKAP ALFAMART</strong>
-        <span id="whoami">—</span>
+        <strong>PERKAP KITA</strong>
+        <span class="who-row"><span id="whoami">—</span><span class="clock" id="clock">--:--:--</span></span>
       </div>
     </div>
     <div class="topbar-right">
       <span class="live-dot" id="liveDot" title="Sinkronisasi realtime"></span>
       <button class="icon-btn theme-btn" title="Mode gelap/terang" type="button">🌙</button>
-      <button class="icon-btn" id="logoutBtn" title="Keluar" type="button">
-        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M16 13v-2H7V8l-5 4 5 4v-3zM20 3h-8v2h8v14h-8v2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>
+      <button class="avatar-btn" id="profileBtn" title="Profil" type="button">
+        <img id="avatarImg" class="avatar-img hidden" alt="" />
+        <span id="avatarIcon" class="avatar-icon">👤</span>
       </button>
     </div>
   </header>
@@ -92,6 +93,11 @@
     </div>
 
     <!-- daftar barang -->
+    <div id="groupControls" class="group-controls hidden">
+      <button type="button" id="expandAllBtn" class="mini-link">Buka semua</button>
+      <span class="mini-sep">·</span>
+      <button type="button" id="collapseAllBtn" class="mini-link">Tutup semua</button>
+    </div>
     <div id="itemList" class="item-list"></div>
     <div id="emptyState" class="empty hidden">
       <div class="empty-emoji">📦</div>
@@ -202,9 +208,34 @@
   </div>
 </div>
 
+<!-- profile modal -->
+<div class="dialog-backdrop hidden" id="profileBackdrop">
+  <div class="dialog profile-dialog" role="dialog" aria-modal="true">
+    <div class="profile-top">
+      <button class="avatar-btn big" id="profileAvatarBtn" type="button" title="Ganti foto">
+        <img id="profileAvatarImg" class="avatar-img hidden" alt="" />
+        <span id="profileAvatarIcon" class="avatar-icon">👤</span>
+      </button>
+      <div class="profile-name" id="profileNameLabel">NAMA</div>
+    </div>
+    <label class="field">
+      <span>Nama tampilan</span>
+      <input type="text" id="profileNameInput" maxlength="30" placeholder="Nama kamu" />
+    </label>
+    <input type="file" id="avatarFile" accept="image/*" class="hidden" />
+    <button type="button" class="btn btn-ghost btn-block" id="changePhotoBtn" style="margin-top:10px;">📷 Ganti Foto</button>
+    <div class="form-error" id="profileError"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="profileClose">Tutup</button>
+      <button type="button" class="btn btn-primary" id="profileSave">Simpan</button>
+    </div>
+    <button type="button" class="btn btn-danger btn-block" id="profileLogout" style="margin-top:12px;">Keluar (Logout)</button>
+  </div>
+</div>
+
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120g"></script>
+<script src="/app.js?v=20261120j"></script>
 </body>
 </html>

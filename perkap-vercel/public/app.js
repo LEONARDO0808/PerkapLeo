@@ -21,7 +21,10 @@
     sort: 'new',
     peminjam: 'all',
     search: '',
+    collapsed: {},
+    displayName: '',
   };
+  let clockTimer = null;
   let pollTimer = null;
   let lastSnapshot = null;
   let lastStatusSnapshot = null;
@@ -243,7 +246,7 @@
     state.token = token;
     state.user = user;
     localStorage.setItem(TOKEN_KEY, token);
-    $('#whoami').textContent = user.username;
+    applyIdentity();
     showApp();
     showOverlay('Memuat data…');
     try {
@@ -266,10 +269,84 @@
     showAuth();
   }
 
-  $('#logoutBtn').addEventListener('click', async () => {
+  $('#logoutBtn') && $('#logoutBtn').addEventListener('click', async () => {
     try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
     logoutLocal();
     toast('Anda telah keluar');
+  });
+
+  /* ---------- Jam realtime ---------- */
+  function startClock() {
+    const el = $('#clock');
+    if (!el) return;
+    const tick = () => {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      el.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    };
+    tick();
+    if (clockTimer) clearInterval(clockTimer);
+    clockTimer = setInterval(tick, 1000);
+  }
+
+  /* ---------- Profil: avatar & nama tampilan ---------- */
+  function avatarKey() { return 'perkap_avatar_' + (state.user ? state.user.id : 'x'); }
+  function nameKey() { return 'perkap_dispname_' + (state.user ? state.user.id : 'x'); }
+  function applyIdentity() {
+    if (!state.user) return;
+    const storedName = localStorage.getItem(nameKey());
+    state.displayName = (storedName && storedName.trim()) || state.user.username;
+    const avatar = localStorage.getItem(avatarKey());
+    const who = $('#whoami'); if (who) who.textContent = state.displayName;
+    [['#avatarImg', '#avatarIcon'], ['#profileAvatarImg', '#profileAvatarIcon']].forEach(([imgSel, iconSel]) => {
+      const img = $(imgSel), icon = $(iconSel);
+      if (!img) return;
+      if (avatar) { img.src = avatar; img.classList.remove('hidden'); if (icon) icon.classList.add('hidden'); }
+      else { img.classList.add('hidden'); img.removeAttribute('src'); if (icon) icon.classList.remove('hidden'); }
+    });
+    const lbl = $('#profileNameLabel'); if (lbl) lbl.textContent = state.displayName;
+    const inp = $('#profileNameInput'); if (inp) inp.value = state.displayName;
+  }
+  function openProfile() { $('#profileError').textContent = ''; applyIdentity(); $('#profileBackdrop').classList.remove('hidden'); }
+  function closeProfile() { $('#profileBackdrop').classList.add('hidden'); }
+  $('#profileBtn').addEventListener('click', openProfile);
+  $('#profileClose').addEventListener('click', closeProfile);
+  $('#profileBackdrop').addEventListener('click', (e) => { if (e.target.id === 'profileBackdrop') closeProfile(); });
+  $('#changePhotoBtn').addEventListener('click', () => $('#avatarFile').click());
+  $('#profileAvatarBtn').addEventListener('click', () => $('#avatarFile').click());
+  $('#avatarFile').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 256;
+        let w = img.width, h = img.height;
+        const s = Math.min(1, max / Math.max(w, h));
+        w = Math.max(1, Math.round(w * s)); h = Math.max(1, Math.round(h * s));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        let dataUrl = '';
+        try { dataUrl = canvas.toDataURL('image/jpeg', 0.85); } catch (err) { dataUrl = String(reader.result || ''); }
+        try { localStorage.setItem(avatarKey(), dataUrl); } catch (err) { $('#profileError').textContent = 'Foto terlalu besar, coba gambar lain.'; return; }
+        applyIdentity();
+        toast('Foto profil diperbarui');
+      };
+      img.src = String(reader.result || '');
+    };
+    reader.readAsDataURL(f);
+  });
+  $('#profileSave').addEventListener('click', () => {
+    const val = ($('#profileNameInput').value || '').trim();
+    if (val.length < 2) { $('#profileError').textContent = 'Nama minimal 2 karakter'; return; }
+    try { localStorage.setItem(nameKey(), val.slice(0, 30)); } catch (e) {}
+    applyIdentity(); closeProfile(); toast('Profil disimpan');
+  });
+  $('#profileLogout').addEventListener('click', async () => {
+    try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
+    closeProfile(); logoutLocal(); toast('Anda telah keluar');
   });
 
   /* ---------- Data + polling ---------- */
@@ -325,11 +402,12 @@
 
   function renderStats() {
     const s = computeStats();
+    const act = (k) => (state.filter === k ? ' active' : '');
     $('#stats').innerHTML = `
-      <div class="stat total"><div class="num">${s.totalQty}</div><div class="lbl">Total Unit</div></div>
-      <div class="stat dipakai"><div class="num">${s.dipakai}</div><div class="lbl">Dipakai</div></div>
-      <div class="stat dipinjam"><div class="num">${s.dipinjam}</div><div class="lbl">Dipinjam</div></div>
-      <div class="stat dikembalikan"><div class="num">${s.dikembalikan}</div><div class="lbl">Kembali</div></div>
+      <button type="button" class="stat total${act('all')}" data-key="all"><span class="num">${s.totalQty}</span><span class="lbl">Total Unit</span></button>
+      <button type="button" class="stat dipakai${act('dipakai')}" data-key="dipakai"><span class="num">${s.dipakai}</span><span class="lbl">Dipakai</span></button>
+      <button type="button" class="stat dipinjam${act('dipinjam')}" data-key="dipinjam"><span class="num">${s.dipinjam}</span><span class="lbl">Dipinjam</span></button>
+      <button type="button" class="stat dikembalikan${act('dikembalikan')}" data-key="dikembalikan"><span class="num">${s.dikembalikan}</span><span class="lbl">Kembali</span></button>
     `;
   }
 
@@ -361,15 +439,55 @@
     return arr;
   }
 
+  function itemCardHTML(it) {
+    const meta = statusMeta(it.status);
+    const done = isDoneStatus(it);
+    const mine = isMine(it);
+    const optList = state.statuses.slice();
+    if (!optList.some((s) => s.key === it.status)) optList.push({ key: it.status, label: meta.label, isDone: false });
+    const options = optList.map((s) =>
+      `<option value="${s.key}" ${it.status === s.key ? 'selected' : ''}>${esc(s.label)}</option>`
+    ).join('');
+    const subParts = [];
+    if (it.keterangan) subParts.push('📝 ' + esc(it.keterangan));
+    if (it.createdBy) subParts.push('oleh ' + esc(it.createdBy) + (mine ? ' (kamu)' : ''));
+    const sub = subParts.join(' · ');
+    const sideHtml = mine
+      ? `<select class="status-select s-${it.status}" data-action="status">${options}</select>
+          <div class="item-btns">
+            <button class="mini-btn" data-action="edit" title="Ubah"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+            <button class="mini-btn del" data-action="delete" title="Hapus"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+          </div>`
+      : `<span class="status-pill p-${it.status}" title="Hanya bisa dilihat (diinput oleh orang lain)">${esc(meta.label)}</span>`;
+    return `
+      <article class="item-card st-${it.status} ${done ? 'done' : ''} ${mine ? '' : 'viewonly'}" data-id="${it.id}">
+        <div class="item-main">
+          <div class="item-line">
+            <span class="item-name" title="${esc(it.nama)}">${esc(it.nama)}</span>
+            <span class="item-qty"><b>${esc(it.jumlah)}</b> ${esc(it.satuan || 'unit')}</span>
+          </div>
+          ${sub ? `<div class="item-sub">${sub}</div>` : ''}
+        </div>
+        <div class="item-side">${sideHtml}</div>
+      </article>`;
+  }
+  function statusDotColor(key) {
+    const m = { dipakai: 'var(--dipakai)', dipinjam: 'var(--dipinjam)', dikembalikan: 'var(--dikembalikan)' };
+    return m[key] || 'var(--primary)';
+  }
+
   function render() {
     renderTabs();
     renderPeminjamOptions();
     renderStats();
     const list = $('#itemList');
     const items = filteredItems();
+    const controls = $('#groupControls');
+    const grouped = state.filter === 'all';
 
     if (!items.length) {
       list.innerHTML = '';
+      if (controls) controls.classList.add('hidden');
       $('#emptyState').classList.remove('hidden');
       $('#emptyState').querySelector('p').innerHTML = state.items.length
         ? 'Tidak ada barang yang cocok dengan pencarian/filter.'
@@ -377,43 +495,34 @@
       return;
     }
     $('#emptyState').classList.add('hidden');
+    if (controls) controls.classList.toggle('hidden', !grouped);
 
-    list.innerHTML = items.map((it) => {
-      const meta = statusMeta(it.status);
-      const done = isDoneStatus(it);
-      const mine = isMine(it);
-      const optList = state.statuses.slice();
-      if (!optList.some((s) => s.key === it.status)) optList.push({ key: it.status, label: meta.label, isDone: false });
-      const options = optList.map((s) =>
-        `<option value="${s.key}" ${it.status === s.key ? 'selected' : ''}>${esc(s.label)}</option>`
-      ).join('');
-      const subParts = [];
-      if (it.keterangan) subParts.push('📝 ' + esc(it.keterangan));
-      if (it.createdBy) subParts.push('oleh ' + esc(it.createdBy) + (mine ? ' (kamu)' : ''));
-      const sub = subParts.join(' · ');
-      const sideHtml = mine
-        ? `<select class="status-select s-${it.status}" data-action="status">${options}</select>
-            <div class="item-btns">
-              <button class="mini-btn" data-action="edit" title="Ubah">
-                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-              </button>
-              <button class="mini-btn del" data-action="delete" title="Hapus">
-                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-              </button>
-            </div>`
-        : `<span class="status-pill p-${it.status}" title="Hanya bisa dilihat (diinput oleh orang lain)">${esc(meta.label)}</span>`;
-      return `
-        <article class="item-card st-${it.status} ${done ? 'done' : ''} ${mine ? '' : 'viewonly'}" data-id="${it.id}">
-          <div class="item-main">
-            <div class="item-line">
-              <span class="item-name" title="${esc(it.nama)}">${esc(it.nama)}</span>
-              <span class="item-qty"><b>${esc(it.jumlah)}</b> ${esc(it.satuan || 'unit')}</span>
-            </div>
-            ${sub ? `<div class="item-sub">${sub}</div>` : ''}
-          </div>
-          <div class="item-side">${sideHtml}</div>
-        </article>`;
-    }).join('');
+    if (!grouped) {
+      list.innerHTML = items.map(itemCardHTML).join('');
+      return;
+    }
+
+    // Tab "Semua": kelompokkan per status (bisa dibuka/ditutup)
+    const order = state.statuses.map((s) => ({ key: s.key, label: s.label }));
+    for (const it of items) {
+      if (!order.some((k) => k.key === it.status)) order.push({ key: it.status, label: statusMeta(it.status).label });
+    }
+    let html = '';
+    for (const g of order) {
+      const grp = items.filter((it) => it.status === g.key);
+      if (!grp.length) continue;
+      const collapsed = !!state.collapsed[g.key];
+      html += `<div class="group">
+        <button type="button" class="group-head" data-group="${esc(g.key)}">
+          <span class="group-dot" style="background:${statusDotColor(g.key)}"></span>
+          <span class="group-label">${esc(g.label)}</span>
+          <span class="group-count">${grp.length}</span>
+          <span class="group-chev ${collapsed ? 'collapsed' : ''}">▾</span>
+        </button>
+        <div class="group-body ${collapsed ? 'collapsed' : ''}">${grp.map(itemCardHTML).join('')}</div>
+      </div>`;
+    }
+    list.innerHTML = html;
   }
 
   /* ---------- Item interactions (event delegation) ---------- */
@@ -473,6 +582,34 @@
   });
   $('#sortSelect').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
   $('#peminjamSelect').addEventListener('change', (e) => { state.peminjam = e.target.value; render(); });
+
+  /* ---------- Kartu statistik bisa diklik (jump ke tab) ---------- */
+  $('#stats').addEventListener('click', (e) => {
+    const s = e.target.closest('.stat');
+    if (!s) return;
+    state.filter = s.dataset.key || 'all';
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  /* ---------- Buka/tutup grup status ---------- */
+  $('#itemList').addEventListener('click', (e) => {
+    const head = e.target.closest('.group-head');
+    if (!head) return;
+    const key = head.dataset.group;
+    state.collapsed[key] = !state.collapsed[key];
+    const grp = head.closest('.group');
+    const body = grp && grp.querySelector('.group-body');
+    const chev = head.querySelector('.group-chev');
+    if (body) body.classList.toggle('collapsed', !!state.collapsed[key]);
+    if (chev) chev.classList.toggle('collapsed', !!state.collapsed[key]);
+  });
+  $('#expandAllBtn').addEventListener('click', () => { state.collapsed = {}; render(); });
+  $('#collapseAllBtn').addEventListener('click', () => {
+    for (const s of state.statuses) state.collapsed[s.key] = true;
+    for (const it of state.items) state.collapsed[it.status] = true;
+    render();
+  });
   let searchTimer;
   $('#searchInput').addEventListener('input', (e) => {
     clearTimeout(searchTimer);
@@ -611,7 +748,7 @@
     try {
       const r = await api('/api/me');
       state.user = r.user;
-      $('#whoami').textContent = r.user.username;
+      applyIdentity();
       showApp();
       showOverlay('Memuat data…');
       try {
@@ -626,6 +763,7 @@
     }
   }
   boot();
+  startClock();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
