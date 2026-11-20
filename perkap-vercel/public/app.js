@@ -28,6 +28,8 @@
   let pollTimer = null;
   let lastSnapshot = null;
   let lastStatusSnapshot = null;
+  let recentLocal = {};
+  let didInitialRender = false;
 
   /* ---------- API helper ---------- */
   async function api(path, opts = {}) {
@@ -79,6 +81,16 @@
   function saveQueue(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (e) {} }
   function tmpId() { return 'tmp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function isTempId(id) { return String(id).startsWith('tmp_'); }
+  function touchRecent(id) { recentLocal[id] = Date.now(); }
+  function clearRecent(id) { delete recentLocal[id]; }
+  function hasRecentLocal() {
+    const n = Date.now();
+    for (const k in recentLocal) {
+      if (n - recentLocal[k] < 5000) return true;
+      delete recentLocal[k];
+    }
+    return false;
+  }
 
   function updateOnlineUI() {
     state.online = navigator.onLine;
@@ -108,7 +120,7 @@
             const idx = state.items.findIndex((x) => x.id === op.tempId);
             if (idx >= 0) state.items[idx] = real;
             for (const o of q) { if (o.id === op.tempId) o.id = real.id; }
-            q.shift();
+            q.shift(); delete recentLocal[op.tempId]; touchRecent(real.id);
           } else if (op.op === 'update') {
             if (isTempId(op.id)) { q.shift(); }
             else { await api('/api/items/' + op.id, { method: 'PUT', body: JSON.stringify(op.patch) }); q.shift(); }
@@ -143,6 +155,7 @@
       createdAt: Date.now(), updatedAt: Date.now(), _pending: true,
     };
     state.items.unshift(optimistic);
+    touchRecent(optimistic.id);
     const q = loadQueue(); q.push({ op: 'create', tempId: optimistic.id, payload }); saveQueue(q);
     lastSnapshot = JSON.stringify(state.items);
     saveCache(); render();
@@ -150,6 +163,7 @@
     return optimistic;
   }
   async function saveUpdateItem(id, patch) {
+    touchRecent(id);
     const it = state.items.find((x) => x.id === id);
     if (it) { Object.assign(it, patch); it.updatedAt = Date.now(); }
     if (isTempId(id)) {
@@ -163,6 +177,7 @@
     await flushQueue();
   }
   async function deleteItemById(id) {
+    touchRecent(id);
     state.items = state.items.filter((x) => x.id !== id);
     if (isTempId(id)) {
       const q = loadQueue().filter((o) => !(o.op === 'create' && o.tempId === id) && o.id !== id);
@@ -252,7 +267,7 @@
     try { localStorage.setItem('perkap_theme', t); } catch (e) {}
     document.querySelectorAll('.theme-btn').forEach((b) => { b.textContent = t === 'dark' ? '☀️' : '🌙'; });
     const mt = document.querySelector('meta[name="theme-color"]');
-    if (mt) mt.setAttribute('content', t === 'dark' ? '#0f1117' : '#4f46e5');
+    if (mt) mt.setAttribute('content', t === 'dark' ? '#0b0f22' : '#f2f4fc');
   }
   function currentTheme() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -536,6 +551,27 @@
     finally { hideOverlay(); }
   });
 
+  /* ---------- Instalasi PWA (ikon aplikasi di HP) ---------- */
+  let deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; });
+  window.addEventListener('appinstalled', () => { toast('Aplikasi berhasil dipasang 🎉'); });
+  const installBtnEl = $('#installBtn');
+  if (installBtnEl) installBtnEl.addEventListener('click', async () => {
+    if (deferredInstall) {
+      try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch (e) {}
+      deferredInstall = null;
+      return;
+    }
+    const ua = navigator.userAgent || '';
+    const isIOS = /iP(hone|ad|od)/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    let msg;
+    if (isIOS) msg = 'Di iPhone/iPad (Safari): ketuk tombol Bagikan (kotak dengan panah ke atas) → pilih “Tambah ke Layar Utama” → Tambah.';
+    else if (isAndroid) msg = 'Di Chrome Android: ketuk menu ⋮ (kanan atas) → pilih “Instal aplikasi” / “Tambahkan ke Layar Utama”. Setelah itu ikon muncul di menu HP.';
+    else msg = 'Di Chrome/Edge desktop: klik ikon “Instal” di address bar, atau menu ⋮ → “Install”.';
+    openDialog({ title: 'Cara Install Aplikasi', message: msg, okText: 'Mengerti', cancelText: 'Tutup' });
+  });
+
   /* ---------- Data + polling ---------- */
   async function loadItems() {
     if (!navigator.onLine) { updateOnlineUI(); return; }
@@ -545,6 +581,7 @@
       const r = await api('/api/items');
       const snapshot = JSON.stringify(r.items);
       updateOnlineUI();
+      if (hasRecentLocal()) return; // jangan timpa perubahan lokal yang baru (biar tidak balik)
       if (snapshot === lastSnapshot) return;
       const ae = document.activeElement;
       if (ae && ae.tagName === 'SELECT' && ae.closest('.item-list')) {
@@ -674,6 +711,7 @@
     renderPeminjamOptions();
     renderStats();
     const list = $('#itemList');
+    if (!didInitialRender) { didInitialRender = true; list.classList.add('animate'); setTimeout(() => list.classList.remove('animate'), 500); }
     const items = filteredItems();
     const controls = $('#groupControls');
     const grouped = state.filter === 'all';
@@ -1233,6 +1271,18 @@
 
   boot();
   startClock();
+  (function () {
+    let done = false;
+    function hideSplash() {
+      if (done) return; done = true;
+      const sp = document.getElementById('splash');
+      if (!sp) return;
+      sp.classList.add('hide');
+      setTimeout(() => { if (sp) sp.remove(); }, 500);
+    }
+    window.addEventListener('load', () => setTimeout(hideSplash, 700));
+    setTimeout(hideSplash, 3000);
+  })();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

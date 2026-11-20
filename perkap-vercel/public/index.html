@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
   <title>PERKAP KITA · Inventaris Barang Acara</title>
-  <meta name="theme-color" content="#4f46e5" />
+  <meta name="theme-color" content="#0b0f22" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -20,9 +20,16 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261121s" />
+  <link rel="stylesheet" href="/styles.css?v=20261121v" />
 </head>
 <body>
+
+<!-- splash screen -->
+<div id="splash" class="splash">
+  <img class="splash-logo" src="/icons/logo.png" alt="PERKAP KITA" />
+  <div class="splash-name">PERKAP KITA</div>
+  <div class="splash-bar"><span></span></div>
+</div>
 
 <!-- ================= LOGIN / REGISTER ================= -->
 <section id="authScreen" class="auth-screen">
@@ -238,6 +245,7 @@
     </label>
     <div class="admin-block">
       <div class="admin-title">Kelola Data</div>
+      <button type="button" class="btn btn-primary btn-block" id="installBtn">📲 Instal Aplikasi di HP</button>
       <button type="button" class="btn btn-ghost btn-block" id="exportJsonBtn">⬇️ Simpan Semua (Export JSON)</button>
       <button type="button" class="btn btn-ghost btn-block" id="exportCsvBtn">📄 Export ke CSV (Excel)</button>
       <button type="button" class="btn btn-danger btn-block" id="deleteAllBtn">🗑 Hapus Semua Barang</button>
@@ -282,6 +290,6 @@
 <!-- toast -->
 <div id="toast" class="toast"></div>
 
-<script src="/app.js?v=20261120s"></script>
+<script src="/app.js?v=20261120v"></script>
 </body>
 </html>
