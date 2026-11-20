@@ -18,16 +18,6 @@ export default async function handler(req, res) {
     const item = rows[0];
     if (!item) return res.status(404).json({ error: 'Barang tidak ditemukan' });
 
-    const ownerId = item.created_by_id != null ? String(item.created_by_id) : null;
-    const isOwner = ownerId
-      ? ownerId === u.id
-      : (item.created_by_name || '').toLowerCase() === u.name.toLowerCase();
-    if (!isOwner) {
-      return res.status(403).json({
-        error: 'Hanya bisa mengubah barang yang Anda input sendiri. Barang orang lain hanya bisa dilihat.',
-      });
-    }
-
     if (req.method === 'PUT' || req.method === 'PATCH') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       let nama = item.nama;

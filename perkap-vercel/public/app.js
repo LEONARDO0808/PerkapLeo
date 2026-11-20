@@ -724,15 +724,13 @@
     if (it.createdBy) subParts.push('oleh ' + esc(it.createdBy) + (mine ? ' (kamu)' : ''));
     if (it._pending) subParts.push('⏳ menunggu sinkron');
     const sub = subParts.join(' · ');
-    const sideHtml = mine
-      ? `<select class="status-select s-${it.status}" data-action="status">${options}</select>
-          <div class="item-btns">
-            <button class="mini-btn" data-action="edit" title="Ubah"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
-            <button class="mini-btn del" data-action="delete" title="Hapus"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
-          </div>`
-      : `<span class="status-pill p-${it.status}" title="Hanya bisa dilihat (diinput oleh orang lain)">${esc(meta.label)}</span>`;
+    const sideHtml = `<select class="status-select s-${it.status}" data-action="status">${options}</select>
+        <div class="item-btns">
+          <button class="mini-btn" data-action="edit" title="Ubah"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+          <button class="mini-btn del" data-action="delete" title="Hapus"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+        </div>`;
     return `
-      <article class="item-card st-${it.status} ${done ? 'done' : ''} ${mine ? '' : 'viewonly'}" data-id="${it.id}">
+      <article class="item-card st-${it.status} ${done ? 'done' : ''}" data-id="${it.id}">
         <div class="item-main">
           <div class="item-line">
             <span class="item-name" title="${esc(it.nama)}">${esc(it.nama)}</span>
@@ -895,9 +893,8 @@
       <h3 class="detail-title ${done ? 'done-name' : ''}">${esc(it.nama)}</h3>
       <div class="detail-qty"><b>${esc(it.jumlah)}</b> ${esc(it.satuan || 'unit')}</div>
       <div class="detail-rows">${rows.join('')}</div>
-      ${mine
-        ? `<div class="detail-actions"><button type="button" class="btn btn-ghost" id="detailEdit">✏️ Ubah</button><button type="button" class="btn btn-danger" id="detailDelete">🗑 Hapus</button></div>`
-        : `<div class="detail-note">Barang ini diinput orang lain — hanya bisa dilihat.</div>`}
+      ${''}
+      <div class="detail-actions"><button type="button" class="btn btn-ghost" id="detailEdit">✏️ Ubah</button><button type="button" class="btn btn-danger" id="detailDelete">🗑 Hapus</button></div>
     `;
     $('#detailBackdrop').classList.remove('hidden');
     const ed = $('#detailEdit');
